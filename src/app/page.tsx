@@ -8,6 +8,8 @@ import Clock from "@/components/Clock";
 import { PORTFOLIO_DATA as D } from "@/lib/data";
 import NewsSection from "@/components/NewsSection";
 import NewsFeed from "@/components/NewsFeed";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, increment } from "firebase/firestore";
 
 const SECTIONS = [
   { id: "hero", label: "00 — index" },
@@ -21,8 +23,32 @@ const SECTIONS = [
 export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [activeId, setActiveId] = useState("hero");
+  const [visitors, setVisitors] = useState({ today: 0, total: 0 });
 
   useEffect(() => { getPosts().then(setPosts); }, []);
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const sessionKey = `visited_${today}`;
+    const alreadyCounted = sessionStorage.getItem(sessionKey);
+    const totalRef = doc(db, "meta", "visitors");
+    const todayRef = doc(db, "meta", `visitors_${today}`);
+    async function trackAndRead() {
+      if (!alreadyCounted) {
+        sessionStorage.setItem(sessionKey, "1");
+        await Promise.all([
+          setDoc(totalRef, { total: increment(1) }, { merge: true }),
+          setDoc(todayRef, { count: increment(1), date: today }, { merge: true }),
+        ]);
+      }
+      const [totalSnap, todaySnap] = await Promise.all([getDoc(totalRef), getDoc(todayRef)]);
+      setVisitors({
+        total: totalSnap.exists() ? (totalSnap.data().total ?? 0) : 0,
+        today: todaySnap.exists() ? (todaySnap.data().count ?? 0) : 0,
+      });
+    }
+    trackAndRead();
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -44,7 +70,7 @@ export default function Home() {
       <FuturisticGrid color="#00e5ff" accent="#ff4dd2" density={60} />
 
       <header className="v3-doc-head">
-        <div>VISITORS · TODAY <b>0</b> · TOTAL <b>0</b></div>
+        <div>VISITORS · TODAY <b>{visitors.today}</b> · TOTAL <b>{visitors.total}</b></div>
         <div className="center">/ HOME /</div>
         <div className="right"><Clock /></div>
       </header>
