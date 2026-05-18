@@ -1,0 +1,93 @@
+/* ============================================================
+   PORTFOLIO — GLOBAL TYPE + RESET (shared)
+   ============================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #000; color: #e8e8e8; }
+body {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ----- grid bg canvas ----- */
+.grid-bg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ----- ticker (base, variants override) ----- */
+.ticker-row {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.ticker-track {
+  display: inline-flex;
+  gap: 0;
+  animation: tk 90s linear infinite;
+  will-change: transform;
+}
+@keyframes tk { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.ticker-item { display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; }
+.ticker-sym { font-weight: 700; }
+.ticker-px  { opacity: 0.9; }
+.ticker-d.up { color: #00ff88; }
+.ticker-d.dn { color: #ff2e63; }
+.ticker-sep { opacity: 0.3; padding: 0 4px; }
+
+/* selection */
+::selection { background: #00ff88; color: #000; }
+
+/* artboard root resets */
+.pf-root {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  isolation: isolate;
+}
+.pf-root > * { position: relative; z-index: 1; }
+.pf-root .grid-bg { z-index: 0; }
+
+/* image placeholder */
+.img-placeholder {
+  background-image:
+    repeating-linear-gradient(45deg,
+      rgba(255,255,255,0.04) 0 6px,
+      rgba(255,255,255,0.00) 6px 12px);
+  border: 1px dashed rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* status pills (shared base) */
+.status {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10px; letter-spacing: 0.18em; font-weight: 700;
+  padding: 4px 8px; border: 1px solid currentColor;
+  text-transform: uppercase;
+}
+.status::before {
+  content: ""; width: 6px; height: 6px; background: currentColor;
+  display: inline-block;
+}
+.status[data-s="SHIPPING"] { color: #00ff88; }
+.status[data-s="LIVE"]     { color: #00e5ff; }
+.status[data-s="BUILDING"] { color: #ff4dd2; }
+.status[data-s="ARCHIVED"] { color: #666; }
+
+/* utility */
+.mono { font-family: inherit; }
+.upper { text-transform: uppercase; letter-spacing: 0.08em; }
+.dim { opacity: 0.55; }
+.dimmer { opacity: 0.35; }
+.hr-d { border: 0; border-top: 1px dashed rgba(255,255,255,0.18); }
+.hr-s { border: 0; border-top: 1px solid rgba(255,255,255,0.18); }
+.hr-h { border: 0; border-top: 2px solid #fff; }

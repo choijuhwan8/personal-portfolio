@@ -1,0 +1,354 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
+import Link from "next/link";
+
+const PASS = "letmein";
+
+interface Draft {
+  id: string; title: string; dek: string; tag: string;
+  date: string; status: string; slug: string; body: string; updated: number;
+}
+
+function slugify(title: string, existingSlugs: string[] = [], currentId = ""): string {
+  const base = title.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "untitled";
+  const others = existingSlugs.filter((_, i) => i !== existingSlugs.indexOf(currentId));
+  if (!others.includes(base)) return base;
+  let i = 2;
+  while (others.includes(`${base}-${i}`)) i++;
+  return `${base}-${i}`;
+}
+
+function newDraft(): Draft {
+  return { id: "d-" + Date.now(), title: "", dek: "", tag: "RESEARCH", date: new Date().toISOString().slice(0, 10), status: "draft", slug: "untitled", body: "", updated: Date.now() };
+}
+
+const STORE_KEY = "juhwan_drafts_v1";
+function loadDrafts(): Draft[] {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); } catch { return []; }
+}
+function saveDrafts(arr: Draft[]) { localStorage.setItem(STORE_KEY, JSON.stringify(arr)); }
+
+export default function AdminPage() {
+  const [unlocked, setUnlocked] = useState(false);
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState("");
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [currentId, setCurrentId] = useState("");
+  const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving">("saved");
+  const [publishState, setPublishState] = useState("");
+  const [fetchState, setFetchState] = useState("");
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cur = drafts.find((d) => d.id === currentId);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("admin_ok") === "1") setUnlocked(true);
+  }, []);
+
+  useEffect(() => {
+    if (!unlocked) return;
+    let d = loadDrafts();
+    if (!d.length) {
+      d = [{
+        ...newDraft(),
+        title: "Welcome to the editor",
+        dek: "A starter draft you can edit, save, or delete.",
+        body: `# Welcome
+
+This is the **admin editor**. It saves every keystroke to your browser's local storage.
+
+## What works
+
+- Typing
+- Markdown shortcuts in the toolbar
+- A live preview on the right
+- \`Cmd/Ctrl + S\` to save manually
+
+## What's wired up
+
+The \`PUBLISH →\` button saves to **Firebase Firestore**. Your post will appear on the site immediately.
+
+## Markdown reference
+
+**Bold** — \`**text**\`
+_Italic_ — \`_text_\`
+\`Inline code\` — \`\\\`text\\\`\`
+
+### Headings
+
+Use \`#\`, \`##\`, \`###\` for H1, H2, H3.
+
+### Blockquote
+
+> This is a blockquote. Use \`> text\` to create one.
+
+### List
+
+- Item one
+- Item two
+- Item three
+
+### Link
+
+[Link text](https://example.com)
+
+### Code block
+
+\`\`\`
+const hello = "world";
+console.log(hello);
+\`\`\`
+
+---
+
+> Tip: type _admin_ anywhere on the site to come back here.`,
+      }];
+      saveDrafts(d);
+    }
+    setDrafts(d);
+    setCurrentId(d[0].id);
+  }, [unlocked]);
+
+  function unlock() {
+    if (pass === PASS) { sessionStorage.setItem("admin_ok", "1"); setUnlocked(true); }
+    else { setErr("// wrong passphrase"); setPass(""); }
+  }
+
+  function update(field: keyof Draft, value: string) {
+    setDrafts((prev) => {
+      const next = prev.map((d) => {
+        if (d.id !== currentId) return d;
+        const updated: Draft = { ...d, [field]: value, updated: Date.now() };
+        if (field === "title") updated.slug = slugify(value, prev.map(x => x.slug), d.slug);
+        return updated;
+      });
+      setSaveState("dirty");
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => { saveDrafts(next); setSaveState("saved"); }, 600);
+      return next;
+    });
+  }
+
+  function persist() {
+    saveDrafts(drafts);
+    setSaveState("saved");
+  }
+
+  async function publish() {
+    if (!cur) return;
+    setPublishState("PUBLISHING…");
+    const updated = drafts.map((d) => d.id === currentId ? { ...d, status: "published" } : d);
+    setDrafts(updated);
+    saveDrafts(updated);
+    try {
+      await setDoc(doc(db, "posts", cur.slug), {
+        id: cur.slug, title: cur.title, dek: cur.dek, tag: cur.tag,
+        date: cur.date, status: "published", slug: cur.slug, body: cur.body, updatedAt: Date.now(),
+      });
+      setPublishState("PUBLISHED ✓");
+    } catch (e: any) {
+      setPublishState("ERROR: " + e.message);
+    }
+    setTimeout(() => setPublishState(""), 2000);
+  }
+
+  async function fetchFromFirebase() {
+    setFetchState("LOADING…");
+    try {
+      const snap = await getDocs(collection(db, "posts"));
+      setDrafts((prev) => {
+        const next = [...prev];
+        snap.forEach((docSnap) => {
+          const p = docSnap.data();
+          if (!next.find((d) => d.slug === p.slug)) {
+            next.unshift({ id: "d-" + p.slug, title: p.title || "", dek: p.dek || "", tag: p.tag || "RESEARCH", date: p.date || "", status: p.status || "published", slug: p.slug || "", body: p.body || "", updated: p.updatedAt || Date.now() });
+          }
+        });
+        saveDrafts(next);
+        return next;
+      });
+      setFetchState("LOADED ✓");
+    } catch (e: any) {
+      setFetchState("ERROR: " + e.message);
+    }
+    setTimeout(() => setFetchState(""), 2000);
+  }
+
+  async function deleteDraft() {
+    if (!confirm("Delete this draft?")) return;
+    const next = drafts.filter((d) => d.id !== currentId);
+    const final = next.length ? next : [newDraft()];
+    setDrafts(final);
+    saveDrafts(final);
+    setCurrentId(final[0].id);
+  }
+
+  async function deleteFromFirebase() {
+    if (!cur || !confirm(`Delete "${cur.title || cur.slug}" from Firebase?`)) return;
+    await deleteDoc(doc(db, "posts", cur.slug));
+    deleteDraft();
+  }
+
+  function exportMd() {
+    if (!cur) return;
+    const fm = `---\ntitle: "${cur.title}"\ndek: "${cur.dek}"\ntag: ${cur.tag}\ndate: ${cur.date}\nstatus: ${cur.status}\nslug: ${cur.slug}\n---\n\n`;
+    const blob = new Blob([fm + cur.body], { type: "text/markdown" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = (cur.slug || "untitled") + ".md"; a.click();
+  }
+
+  function insertMd(a: string, b = "") {
+    const ta = document.getElementById("body-ta") as HTMLTextAreaElement;
+    if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const sel = ta.value.slice(s, e);
+    ta.value = ta.value.slice(0, s) + a + sel + b + ta.value.slice(e);
+    ta.focus(); ta.selectionStart = s + a.length; ta.selectionEnd = s + a.length + sel.length;
+    update("body", ta.value);
+  }
+
+  if (!unlocked) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "#0d0e10", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ border: "1px solid #00e5ff", background: "#14161a", padding: 32, width: 380, maxWidth: "90vw" }}>
+          <h1 style={{ fontFamily: "Space Grotesk, monospace", fontSize: 28, fontWeight: 700, color: "#e6ecec", marginBottom: 4 }}>admin<span style={{ color: "#00e5ff" }}>.</span></h1>
+          <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#00e5ff", marginBottom: 20 }}>/ COMPOSE · INTERNAL</div>
+          <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === "Enter" && unlock()} placeholder="passphrase…" autoFocus style={{ width: "100%", fontFamily: "inherit", padding: "12px 14px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#e6ecec", marginBottom: 8, letterSpacing: "0.16em", fontSize: 13 }} />
+          {err && <div style={{ color: "#ff4dd2", fontSize: 11, marginBottom: 8 }}>{err}</div>}
+          <button onClick={unlock} style={{ width: "100%", padding: "10px", background: "#00e5ff", color: "#000", border: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 11, letterSpacing: "0.16em" }}>ENTER</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "#0d0e10", color: "#e6ecec", minHeight: "100vh", fontFamily: "JetBrains Mono, monospace", fontSize: 13 }}>
+      <header style={{ display: "grid", gridTemplateColumns: "240px 1fr 240px", padding: "12px 24px", borderBottom: "1px solid #00e5ff", fontSize: 11, letterSpacing: "0.16em", color: "#5e6770", background: "#0d0e10", position: "sticky", top: 0, zIndex: 10 }}>
+        <div>DOC <b style={{ color: "#e6ecec" }}>admin / compose</b></div>
+        <div style={{ textAlign: "center", color: "#00e5ff" }}><Link href="/" style={{ color: "#00e5ff" }}>← / SITE</Link> · <Link href="/writing" style={{ color: "#00e5ff" }}>/ WRITING</Link></div>
+        <div style={{ textAlign: "right", color: saveState === "saved" ? "#aaff00" : saveState === "dirty" ? "#ff4dd2" : "#5e6770" }}>● {saveState.toUpperCase()}</div>
+      </header>
+
+      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr 320px", minHeight: "calc(100vh - 42px)" }}>
+        <aside style={{ borderRight: "1px solid rgba(255,255,255,0.1)", padding: "24px 16px", background: "#14161a" }}>
+          <button onClick={() => { const d = newDraft(); setDrafts((p) => { const n = [d, ...p]; saveDrafts(n); return n; }); setCurrentId(d.id); }} style={{ width: "100%", border: "1px solid #00e5ff", color: "#00e5ff", padding: "10px 12px", fontSize: 11, letterSpacing: "0.16em", marginBottom: 8, cursor: "pointer", background: "none", fontFamily: "inherit" }}>+ NEW DRAFT</button>
+          <button onClick={fetchFromFirebase} style={{ width: "100%", border: "1px solid #aaff00", color: "#aaff00", padding: "10px 12px", fontSize: 11, letterSpacing: "0.16em", marginBottom: 18, cursor: "pointer", background: "none", fontFamily: "inherit" }}>{fetchState || "↓ LOAD FROM FIREBASE"}</button>
+          <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#5e6770", marginBottom: 10 }}>/ DRAFTS</div>
+          {drafts.map((d) => (
+            <div key={d.id} onClick={() => setCurrentId(d.id)} style={{ padding: "10px 12px", borderTop: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderLeft: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderRight: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderBottom: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", background: d.id === currentId ? "rgba(0,229,255,0.05)" : "none", marginBottom: 2 }}>
+              <div style={{ fontFamily: "Space Grotesk, monospace", fontSize: 14, fontWeight: 600, lineHeight: 1.2, marginBottom: 6 }}>{d.title || "(untitled)"}</div>
+              <div style={{ fontSize: 10, letterSpacing: "0.14em", color: "#5e6770", display: "flex", justifyContent: "space-between" }}>
+                <span>{d.tag} · {d.date}</span>
+                <span style={{ color: d.status === "published" ? "#aaff00" : "#5e6770" }}>{d.status}</span>
+              </div>
+            </div>
+          ))}
+        </aside>
+
+        <main style={{ padding: "24px 32px 80px", minWidth: 0 }}>
+          {cur && (
+            <>
+              <input value={cur.title} onChange={(e) => update("title", e.target.value)} placeholder="A title that says something." style={{ width: "100%", fontFamily: "Space Grotesk, monospace", fontSize: 48, fontWeight: 700, letterSpacing: "-0.03em", background: "none", border: 0, color: "#e6ecec", marginBottom: 16, lineHeight: 1 }} />
+              <input value={cur.dek} onChange={(e) => update("dek", e.target.value)} placeholder="One-sentence dek." style={{ width: "100%", fontFamily: "Newsreader, serif", fontSize: 20, background: "none", border: 0, color: "#c0c8cc", marginBottom: 20 }} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: "1px solid rgba(255,255,255,0.1)", borderBottom: "1px solid rgba(255,255,255,0.1)", marginBottom: 24 }}>
+                {(["tag", "date", "status"] as (keyof Draft)[]).map((f) => (
+                  <div key={f} style={{ padding: "10px 12px", borderRight: "1px solid rgba(255,255,255,0.1)" }}>
+                    <span style={{ display: "block", fontSize: 9, letterSpacing: "0.2em", color: "#5e6770", marginBottom: 4 }}>/ {f.toUpperCase()}</span>
+                    {f === "tag" ? (
+                      <select value={cur.tag} onChange={(e) => update("tag", e.target.value)} style={{ background: "none", border: 0, color: "#e6ecec", fontFamily: "inherit", fontSize: 12, width: "100%" }}>
+                        {[["OPINION","OPINION"],["STUDY","STUDY BLOG"]].map(([v,l]) => <option key={v} value={v} style={{ background: "#0d0e10" }}>{l}</option>)}
+                      </select>
+                    ) : f === "status" ? (
+                      <select value={cur.status} onChange={(e) => update("status", e.target.value)} style={{ background: "none", border: 0, color: "#e6ecec", fontFamily: "inherit", fontSize: 12, width: "100%" }}>
+                        <option style={{ background: "#0d0e10" }}>draft</option>
+                        <option style={{ background: "#0d0e10" }}>published</option>
+                      </select>
+                    ) : (
+                      <input value={cur[f] as string} onChange={(e) => update(f, e.target.value)} style={{ background: "none", border: 0, color: "#e6ecec", fontFamily: "inherit", fontSize: 12, width: "100%" }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", border: "1px solid rgba(255,255,255,0.1)", padding: 6, background: "#14161a", marginBottom: 0 }}>
+                {[["H1","# "],["H2","## "],["H3","### "]].map(([l,m]) => <button key={l} onClick={() => insertMd(m)} style={{ padding: "6px 10px", fontSize: 11, border: "1px solid transparent", color: "#5e6770", cursor: "pointer", fontFamily: "inherit" }}>{l}</button>)}
+                <span style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
+                {[["B","**","**"],["I","_","_"],["code","`","`"]].map(([l,a,b]) => <button key={l} onClick={() => insertMd(a, b)} style={{ padding: "6px 10px", fontSize: 11, border: "1px solid transparent", color: "#5e6770", cursor: "pointer", fontFamily: "inherit" }}>{l}</button>)}
+                <span style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
+                {[["quote","> "],["list","- "]].map(([l,m]) => <button key={l} onClick={() => insertMd(m)} style={{ padding: "6px 10px", fontSize: 11, border: "1px solid transparent", color: "#5e6770", cursor: "pointer", fontFamily: "inherit" }}>{l}</button>)}
+              </div>
+              <textarea id="body-ta" value={cur.body} onChange={(e) => update("body", e.target.value)} style={{ width: "100%", minHeight: 520, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", borderTop: 0, color: "#e6ecec", padding: 24, fontFamily: "JetBrains Mono, monospace", fontSize: 14, lineHeight: 1.7, resize: "vertical" }} />
+              <div style={{ marginTop: 20, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button onClick={persist} style={{ padding: "12px 20px", background: "#00e5ff", color: "#000", border: "1px solid #00e5ff", fontSize: 11, letterSpacing: "0.18em", cursor: "pointer", fontFamily: "inherit" }}>SAVE DRAFT</button>
+                <button onClick={publish} style={{ padding: "12px 20px", border: "1px solid rgba(255,255,255,0.1)", color: "#e6ecec", fontSize: 11, letterSpacing: "0.18em", cursor: "pointer", fontFamily: "inherit" }}>{publishState || "PUBLISH →"}</button>
+                <button onClick={exportMd} style={{ padding: "12px 20px", border: "1px solid rgba(255,255,255,0.1)", color: "#e6ecec", fontSize: 11, letterSpacing: "0.18em", cursor: "pointer", fontFamily: "inherit" }}>EXPORT .MD</button>
+                <button onClick={deleteDraft} style={{ padding: "12px 20px", border: "1px solid rgba(255,77,210,0.4)", color: "#ff4dd2", fontSize: 11, letterSpacing: "0.18em", cursor: "pointer", fontFamily: "inherit" }}>DELETE LOCAL</button>
+                <button onClick={deleteFromFirebase} style={{ padding: "12px 20px", border: "1px solid rgba(255,77,210,0.4)", color: "#ff4dd2", fontSize: 11, letterSpacing: "0.18em", cursor: "pointer", fontFamily: "inherit" }}>DELETE FROM DB</button>
+              </div>
+            </>
+          )}
+        </main>
+
+        <aside style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", padding: "24px 20px", background: "rgba(20,22,26,0.6)", fontSize: 12, color: "#5e6770" }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#5e6770", marginBottom: 10 }}>/ PREVIEW</div>
+          {cur && (
+            <div style={{ border: "1px solid rgba(255,255,255,0.1)", padding: 16, background: "#0d0e10", minHeight: 200, fontFamily: "Newsreader, serif", color: "#c0c8cc", fontSize: 14, lineHeight: 1.6 }}>
+              {cur.title && <div style={{ fontFamily: "Space Grotesk, monospace", fontSize: 22, color: "#e6ecec", marginBottom: 8, fontWeight: 700 }}>{cur.title}</div>}
+              {cur.dek && <p style={{ color: "#5e6770", fontStyle: "italic", marginBottom: 12 }}>{cur.dek}</p>}
+              <div style={{ fontSize: 13 }} dangerouslySetInnerHTML={{ __html: simplePreview(cur.body) }} />
+            </div>
+          )}
+          {cur && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderTop: "1px solid rgba(255,255,255,0.1)", marginTop: 18 }}>
+              {[["WORDS", (cur.body.match(/\S+/g) || []).length.toLocaleString()], ["READ", Math.max(1, Math.round((cur.body.match(/\S+/g) || []).length / 220)) + " m"], ["CHARS", cur.body.length.toLocaleString()], ["HEADS", (cur.body.match(/^#{1,3}\s+/gm) || []).length.toString()]].map(([l, v]) => (
+                <div key={l} style={{ padding: 10, borderRight: "1px solid rgba(255,255,255,0.1)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                  <span style={{ fontFamily: "Space Grotesk, monospace", fontSize: 22, color: "#00e5ff", display: "block", fontWeight: 700 }}>{v}</span>
+                  <div style={{ fontSize: 9, letterSpacing: "0.2em", color: "#5e6770", marginTop: 2 }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function simplePreview(src: string): string {
+  const codeBlocks: string[] = [];
+  src = src.replace(/```([\s\S]*?)```/g, (_, code) => {
+    const escaped = code.trim().replace(/[&<>"']/g, (c: string) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
+    codeBlocks.push(`<pre style='background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.25);padding:10px;font-size:11px;overflow:auto;margin:8px 0'><code>${escaped}</code></pre>`);
+    return `%%CODE${codeBlocks.length - 1}%%`;
+  });
+  src = src.replace(/^---$/gm, "%%HR%%");
+  src = src.replace(/^>\s?(.+)$/gm, "%%BQ%%$1%%/BQ%%");
+  let h = src.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
+  h = h.replace(/%%CODE(\d+)%%/g, (_, i) => codeBlocks[+i]);
+  h = h.replace(/%%HR%%/g, "<hr style='border:0;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0'/>");
+  h = h.replace(/^####\s+(.+)$/gm, "<h4 style='font-size:10px;letter-spacing:0.2em;color:#5e6770;text-transform:uppercase;margin-top:10px'>$1</h4>");
+  h = h.replace(/^###\s+(.+)$/gm, "<h3 style='font-size:11px;letter-spacing:0.2em;color:#00e5ff;text-transform:uppercase;margin-top:14px'>$1</h3>");
+  h = h.replace(/^##\s+(.+)$/gm, "<h2 style='font-family:Space Grotesk,monospace;font-size:16px;color:#e6ecec;margin-top:14px'>$1</h2>");
+  h = h.replace(/^#\s+(.+)$/gm, "<h1 style='font-family:Space Grotesk,monospace;font-size:22px;color:#e6ecec;margin-bottom:8px'>$1</h1>");
+  h = h.replace(/%%BQ%%(.+?)%%\/BQ%%/g, "<blockquote style='border-left:3px solid #00e5ff;padding:8px 14px;color:#e6ecec;font-style:italic;background:rgba(0,229,255,0.04);margin:8px 0'>$1</blockquote>");
+  h = h.replace(/((?:^\|.+\|\n?)+)/gm, (block) => {
+    const rows = block.trim().split("\n").filter((l: string) => l.trim() && !/^\|[\s\-|]+\|$/.test(l.trim()));
+    if (rows.length === 0) return block;
+    const parseRow = (l: string) => l.trim().replace(/^\||\|$/g, "").split("|").map((c: string) => c.trim());
+    const [head, ...body] = rows;
+    const ths = parseRow(head).map((c: string) => `<th style='background:rgba(0,229,255,0.08);color:#00e5ff;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;padding:6px 10px;border:1px solid rgba(0,229,255,0.25);text-align:left'>${c}</th>`).join("");
+    const trs = body.map((r: string) => `<tr>${parseRow(r).map((c: string) => `<td style='padding:6px 10px;border:1px solid rgba(255,255,255,0.1);color:#c8d0d4;font-size:12px'>${c}</td>`).join("")}</tr>`).join("");
+    return `<table style='width:100%;border-collapse:collapse;margin:8px 0'><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  });
+  h = h.replace(/((?:- .+\n?)+)/g, (block) => {
+    const items = block.trim().split("\n").filter((l: string) => l.startsWith("- ")).map((l: string) => `<li style='margin:3px 0'>${l.slice(2)}</li>`).join("");
+    return "<ul style='padding-left:1.2em;margin:8px 0'>" + items + "</ul>";
+  });
+  h = h.replace(/\*\*([^*]+)\*\*/g, "<strong style='color:#e6ecec'>$1</strong>");
+  h = h.replace(/_([^_]+)_/g, "<em style='color:#00e5ff'>$1</em>");
+  h = h.replace(/`([^`]+)`/g, "<code style='background:rgba(0,229,255,0.08);color:#00e5ff;padding:1px 4px;font-size:11px'>$1</code>");
+  h = h.replace(/\n\n+/g, "</p><p style='margin-bottom:10px'>");
+  h = h.replace(/\n/g, "<br/>");
+  h = h.replace(/(<br\/>)+(<\/p>)/g, "$2");
+  return "<p style='margin-bottom:10px'>" + h + "</p>";
+}

@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>admin · compose</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0d0e10;
+    --panel: #14161a;
+    --fg: #e6ecec;
+    --cyan: #00e5ff;
+    --mag: #ff4dd2;
+    --lime: #aaff00;
+    --dim: #5e6770;
+    --rule: rgba(255,255,255,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--fg); min-height: 100%; }
+  body {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  a { color: var(--cyan); text-decoration: none; }
+  button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; }
+
+  /* gate / unlock */
+  .gate {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .gate .box {
+    border: 1px solid var(--cyan);
+    background: var(--panel);
+    padding: 32px;
+    width: 380px;
+    max-width: 90vw;
+  }
+  .gate h1 {
+    font-family: "Space Grotesk", monospace;
+    font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  .gate .lbl {
+    font-size: 10px; letter-spacing: 0.2em; color: var(--cyan);
+    margin-bottom: 20px;
+  }
+  .gate input {
+    width: 100%;
+    font: inherit;
+    padding: 12px 14px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--rule);
+    color: var(--fg);
+    margin-bottom: 12px;
+    letter-spacing: 0.16em;
+  }
+  .gate input:focus { outline: none; border-color: var(--cyan); }
+  .gate .hint { font-size: 11px; color: var(--dim); }
+  .gate .err { color: var(--mag); font-size: 11px; height: 14px; margin-top: 6px; letter-spacing: 0.14em; }
+
+  /* === main admin === */
+  .admin { display: none; }
+  .admin.open { display: block; }
+
+  .a-head {
+    display: grid;
+    grid-template-columns: 240px 1fr 240px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--cyan);
+    font-size: 11px; letter-spacing: 0.16em; color: var(--dim);
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .a-head .center { text-align: center; color: var(--cyan); }
+  .a-head .right { text-align: right; }
+  .a-head b { color: var(--fg); }
+  .a-head .pulse { color: var(--lime); }
+  .a-head .pulse::before { content: "● "; animation: blink 1.4s infinite; }
+  @keyframes blink { 50% { opacity: 0.2; } }
+
+  .a-grid {
+    display: grid;
+    grid-template-columns: 240px 1fr 320px;
+    gap: 0;
+    min-height: calc(100vh - 42px);
+  }
+
+  /* drafts rail */
+  .a-side {
+    border-right: 1px solid var(--rule);
+    padding: 24px 16px;
+    background: var(--panel);
+  }
+  .a-side h5 { font-size: 10px; letter-spacing: 0.2em; color: var(--dim); margin-bottom: 10px; font-weight: 500; }
+  .a-side .new-btn {
+    width: 100%;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    padding: 10px 12px;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    margin-bottom: 18px;
+  }
+  .a-side .new-btn:hover { background: var(--cyan); color: #000; }
+  .a-side .draft {
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-bottom: 1px solid var(--rule);
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .a-side .draft.active {
+    border: 1px solid var(--cyan);
+    background: rgba(0,229,255,0.05);
+  }
+  .a-side .draft .t {
+    color: var(--fg);
+    font-family: "Space Grotesk", monospace;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .a-side .draft .m {
+    font-size: 10px; letter-spacing: 0.14em; color: var(--dim);
+    display: flex; justify-content: space-between;
+  }
+  .a-side .draft .m .st { color: var(--cyan); }
+  .a-side .draft .m .st[data-s="draft"] { color: var(--dim); }
+  .a-side .draft .m .st[data-s="published"] { color: var(--lime); }
+
+  /* editor */
+  .a-main { padding: 24px 32px 80px; min-width: 0; }
+  .a-main .toprow {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px;
+  }
+  .a-main .toprow .crumbs {
+    font-size: 11px; letter-spacing: 0.18em; color: var(--cyan);
+  }
+  .a-main .save-state {
+    font-size: 10px; letter-spacing: 0.18em; color: var(--dim);
+  }
+  .a-main .save-state.saved { color: var(--lime); }
+  .a-main .save-state.dirty { color: var(--mag); }
+
+  .a-main input.ttl-in {
+    width: 100%;
+    font-family: "Space Grotesk", monospace;
+    font-size: 56px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    background: none;
+    border: 0;
+    color: var(--fg);
+    padding: 0;
+    margin-bottom: 16px;
+    line-height: 1;
+  }
+  .a-main input.ttl-in:focus { outline: none; }
+  .a-main input.ttl-in::placeholder { color: rgba(255,255,255,0.15); }
+
+  .a-main input.dek-in {
+    width: 100%;
+    font-family: "Newsreader", serif;
+    font-size: 20px;
+    background: none;
+    border: 0;
+    color: #c0c8cc;
+    padding: 0;
+    margin-bottom: 20px;
+  }
+  .a-main input.dek-in:focus { outline: none; }
+  .a-main input.dek-in::placeholder { color: rgba(255,255,255,0.15); }
+
+  .a-meta-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 24px;
+  }
+  .a-meta-row > div {
+    padding: 10px 12px;
+    border-right: 1px solid var(--rule);
+  }
+  .a-meta-row > div:last-child { border-right: 0; }
+  .a-meta-row .l { display: block; font-size: 9px; letter-spacing: 0.2em; color: var(--dim); margin-bottom: 4px; }
+  .a-meta-row select, .a-meta-row input {
+    background: none; border: 0; color: var(--fg); font: inherit; font-size: 12px;
+    width: 100%; padding: 0;
+  }
+  .a-meta-row select:focus, .a-meta-row input:focus { outline: none; }
+  .a-meta-row option { background: var(--bg); }
+
+  /* toolbar */
+  .md-tools {
+    display: flex; gap: 4px; flex-wrap: wrap;
+    border: 1px solid var(--rule);
+    padding: 6px;
+    background: var(--panel);
+    margin-bottom: 0;
+  }
+  .md-tools button {
+    padding: 6px 10px;
+    font-size: 11px;
+    border: 1px solid transparent;
+    color: var(--dim);
+    letter-spacing: 0.06em;
+  }
+  .md-tools button:hover { color: var(--cyan); border-color: var(--rule); }
+  .md-tools .spacer { width: 1px; background: var(--rule); margin: 0 4px; }
+
+  .a-editor {
+    width: 100%;
+    min-height: 520px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--rule);
+    border-top: 0;
+    color: var(--fg);
+    padding: 24px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    resize: vertical;
+  }
+  .a-editor:focus { outline: none; border-color: var(--cyan); border-top-color: var(--rule); }
+
+  /* actions */
+  .a-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 8px;
+  }
+  .a-actions button {
+    padding: 12px 20px;
+    border: 1px solid var(--rule);
+    color: var(--fg);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+  }
+  .a-actions button:hover { border-color: var(--cyan); color: var(--cyan); }
+  .a-actions .primary {
+    border-color: var(--cyan);
+    background: var(--cyan);
+    color: #000;
+  }
+  .a-actions .primary:hover { background: transparent; color: var(--cyan); }
+  .a-actions .danger { color: var(--mag); border-color: rgba(255,77,210,0.4); }
+  .a-actions .danger:hover { border-color: var(--mag); }
+
+  /* preview rail */
+  .a-preview {
+    border-left: 1px solid var(--rule);
+    padding: 24px 20px;
+    background: rgba(20,22,26,0.6);
+    font-size: 12px;
+    color: var(--dim);
+    line-height: 1.6;
+  }
+  .a-preview h5 { font-size: 10px; letter-spacing: 0.2em; color: var(--dim); margin-bottom: 10px; font-weight: 500; }
+  .a-preview .pv {
+    border: 1px solid var(--rule);
+    padding: 16px;
+    background: var(--bg);
+    min-height: 200px;
+    font-family: "Newsreader", serif;
+    color: #c0c8cc;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .a-preview .pv h1 { font-family: "Space Grotesk", monospace; font-size: 24px; color: var(--fg); margin-bottom: 8px; line-height: 1; letter-spacing: -0.02em; }
+  .a-preview .pv h2 { font-family: "Space Grotesk", monospace; font-size: 16px; color: var(--fg); margin-top: 14px; margin-bottom: 6px; }
+  .a-preview .pv h3 { font-size: 10px; letter-spacing: 0.18em; color: var(--cyan); margin-top: 14px; font-family: "JetBrains Mono", monospace; text-transform: uppercase; }
+  .a-preview .pv p { margin-bottom: 10px; font-size: 13px; }
+  .a-preview .pv code { background: rgba(0,229,255,0.08); color: var(--cyan); padding: 1px 4px; font-size: 11px; font-family: "JetBrains Mono", monospace; }
+  .a-preview .pv blockquote { border-left: 2px solid var(--cyan); padding-left: 10px; color: var(--fg); font-style: italic; }
+  .a-preview .pv strong { color: var(--fg); }
+  .a-preview .pv em { color: var(--cyan); }
+  .a-preview .pv ul, .a-preview .pv ol { padding-left: 18px; }
+
+  .a-preview .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid var(--rule);
+    margin-top: 18px;
+  }
+  .a-preview .stats-row > div {
+    padding: 10px;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .a-preview .stats-row > div:nth-child(2n) { border-right: 0; }
+  .a-preview .stats-row .v { font-family: "Space Grotesk", monospace; font-size: 22px; color: var(--cyan); display: block; font-weight: 700; letter-spacing: -0.01em; }
+  .a-preview .stats-row .l { font-size: 9px; letter-spacing: 0.2em; color: var(--dim); margin-top: 2px; }
+
+  .a-preview .pub {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(170,255,0,0.06);
+    border: 1px dashed rgba(170,255,0,0.4);
+    color: var(--lime);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .a-preview .pub a { color: var(--lime); text-decoration: underline; }
+
+  @media (max-width: 1100px) {
+    .a-grid { grid-template-columns: 1fr; }
+    .a-side, .a-preview { border: 0; border-bottom: 1px solid var(--rule); }
+  }
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div class="gate" id="gate">
+  <div class="box">
+    <h1>admin<span style="color: var(--cyan)">.</span></h1>
+    <div class="lbl">/ COMPOSE · INTERNAL</div>
+    <form id="gate-form">
+      <input id="passphrase" type="password" autocomplete="off" placeholder="passphrase…" autofocus />
+      <div class="err" id="err">&nbsp;</div>
+      <div class="hint">
+        Default: <code style="color: var(--cyan)">letmein</code> · change it in <code style="color: var(--cyan)">admin.html</code> line 1.<br/>
+        Tip — anywhere on the site, type <code style="color: var(--cyan)">admin</code> to come back here.
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div class="admin" id="admin">
+
+  <header class="a-head">
+    <div>DOC <b>admin / compose</b> · LOCAL</div>
+    <div class="center"><a href="index.html">← / SITE</a> · <a href="writing.html">/ WRITING</a> · DRAFTING</div>
+    <div class="right"><span class="pulse">CONNECTED</span> · <span id="clock">--:--:-- UTC</span></div>
+  </header>
+
+  <div class="a-grid">
+
+    <!-- DRAFTS -->
+    <aside class="a-side">
+      <button class="new-btn" id="new-btn">+ NEW DRAFT</button>
+      <button class="new-btn" id="fetch-btn" style="border-color: var(--lime); color: var(--lime); margin-bottom: 8px;">↓ LOAD FROM FIREBASE</button>
+      <h5>/ DRAFTS</h5>
+      <div id="drafts"></div>
+    </aside>
+
+    <!-- EDITOR -->
+    <main class="a-main">
+      <div class="toprow">
+        <div class="crumbs">~ / drafts / <span id="crumb-slug">new-post</span>.md</div>
+        <div class="save-state saved" id="save-state">● SAVED</div>
+      </div>
+
+      <input class="ttl-in" id="title" type="text" placeholder="A title that says something." />
+      <input class="dek-in" id="dek" type="text" placeholder="One-sentence dek — what is this post actually about?" />
+
+      <div class="a-meta-row">
+        <div>
+          <span class="l">/ TAG</span>
+          <select id="tag">
+            <option>RESEARCH</option>
+            <option>THESIS</option>
+            <option>PRIMER</option>
+            <option>OPINION</option>
+            <option>FIELD NOTES</option>
+          </select>
+        </div>
+        <div>
+          <span class="l">/ DATE</span>
+          <input id="date" type="date" />
+        </div>
+        <div>
+          <span class="l">/ STATUS</span>
+          <select id="status">
+            <option value="draft">draft</option>
+            <option value="published">published</option>
+          </select>
+        </div>
+        <div>
+          <span class="l">/ SLUG</span>
+          <input id="slug" type="text" placeholder="my-post-slug" />
+        </div>
+      </div>
+
+      <div class="md-tools">
+        <button data-md="# ">H1</button>
+        <button data-md="## ">H2</button>
+        <button data-md="### ">H3</button>
+        <div class="spacer"></div>
+        <button data-md="**" data-md2="**">B</button>
+        <button data-md="_"  data-md2="_">I</button>
+        <button data-md="`"  data-md2="`">code</button>
+        <div class="spacer"></div>
+        <button data-md="> ">quote</button>
+        <button data-md="- ">list</button>
+        <button data-md="[" data-md2="](url)">link</button>
+        <div class="spacer"></div>
+        <button data-md="\n---\n">hr</button>
+      </div>
+
+      <textarea class="a-editor" id="body" placeholder="# Markdown welcome.
+
+Write the post here. Some shortcuts that work:
+
+- **bold**, _italic_, `code`
+- # headings
+- > blockquotes
+- - lists
+- [links](https://example.com)
+
+Cmd/Ctrl + S to save manually (auto-saves to localStorage as you type)."></textarea>
+
+      <div class="a-actions">
+        <button class="primary" id="save-btn">SAVE DRAFT</button>
+        <button id="publish-btn">PUBLISH →</button>
+        <button id="export-btn">EXPORT .MD</button>
+        <button id="copy-btn">COPY HTML</button>
+        <button class="danger" id="delete-btn">DELETE</button>
+      </div>
+    </main>
+
+    <!-- PREVIEW -->
+    <aside class="a-preview">
+      <h5>/ PREVIEW</h5>
+      <div class="pv" id="preview"><em style="color: var(--dim);">start typing →</em></div>
+
+      <div class="stats-row">
+        <div><span class="v" id="s-words">0</span><div class="l">WORDS</div></div>
+        <div><span class="v" id="s-read">0 m</span><div class="l">READ TIME</div></div>
+        <div><span class="v" id="s-chars">0</span><div class="l">CHARS</div></div>
+        <div><span class="v" id="s-hd">0</span><div class="l">HEADINGS</div></div>
+      </div>
+
+      <div class="pub">
+        <b>/ PUBLISH OPTIONS</b><br/>
+        This editor saves to <code>localStorage</code> on your device.<br/>
+        To go live, hook <code>publish</code> to:
+        <br/>· your <a href="#">WordPress REST API</a>
+        <br/>· <a href="#">mirror.xyz</a> (ENS-signed)
+        <br/>· <a href="#">paragraph.xyz</a>
+        <br/>· a Git commit to your repo
+      </div>
+
+      <h5 style="margin-top: 20px;">/ SHORTCUTS</h5>
+      <div style="font-size: 11px; line-height: 1.8;">
+        <div><code style="color: var(--cyan);">Cmd/Ctrl + S</code> — save draft</div>
+        <div><code style="color: var(--cyan);">Cmd/Ctrl + Enter</code> — publish</div>
+        <div><code style="color: var(--cyan);">Esc</code> — lock screen</div>
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<script type="module">
+  // === Firebase ===
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCIlf6IqAm2ncw3Pv3SeL-q2dlymJMXOU0",
+    authDomain: "portfolio-7aa51.firebaseapp.com",
+    projectId: "portfolio-7aa51",
+    storageBucket: "portfolio-7aa51.firebasestorage.app",
+    messagingSenderId: "707385100370",
+    appId: "1:707385100370:web:956cf29bd6d25ed359b78b",
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // === simple gate ===
+  // change the passphrase by editing this string:
+  const PASS = "letmein";
+
+  const gate = document.getElementById("gate");
+  const admin = document.getElementById("admin");
+
+  function unlock() {
+    sessionStorage.setItem("admin_ok", "1");
+    gate.style.display = "none";
+    admin.classList.add("open");
+  }
+  function lock() {
+    sessionStorage.removeItem("admin_ok");
+    gate.style.display = "flex";
+    admin.classList.remove("open");
+    document.getElementById("passphrase").value = "";
+    document.getElementById("passphrase").focus();
+  }
+  if (sessionStorage.getItem("admin_ok") === "1") unlock();
+
+  document.getElementById("gate-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = document.getElementById("passphrase").value;
+    if (v === PASS) unlock();
+    else {
+      document.getElementById("err").textContent = "// wrong passphrase";
+      document.getElementById("passphrase").value = "";
+    }
+  });
+
+  // === drafts (localStorage) ===
+  const STORE_KEY = "juhwan_drafts_v1";
+  function loadDrafts() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); }
+    catch { return []; }
+  }
+  function saveDrafts(arr) {
+    localStorage.setItem(STORE_KEY, JSON.stringify(arr));
+  }
+
+  function newDraft() {
+    return {
+      id: "d-" + Date.now(),
+      title: "",
+      dek: "",
+      tag: "RESEARCH",
+      date: new Date().toISOString().slice(0, 10),
+      status: "draft",
+      slug: "untitled-" + Date.now().toString(36).slice(-5),
+      body: "",
+      updated: Date.now(),
+    };
+  }
+
+  let drafts = loadDrafts();
+  if (!drafts.length) drafts = [{
+    ...newDraft(),
+    title: "Welcome to the editor",
+    dek: "A starter draft you can edit, save, or delete.",
+    body: "# Welcome\n\nThis is the **admin editor**. It saves every keystroke to your browser's local storage.\n\n## What works\n\n- Typing\n- Markdown shortcuts in the toolbar\n- A live preview on the right\n- `Cmd/Ctrl + S` to save manually\n\n## What's stubbed\n\nThe `PUBLISH →` button is wired to a no-op right now — connect it to your WordPress REST endpoint, a Mirror entry, or a Git commit when you're ready.\n\n> Tip: type _admin_ anywhere on the site to come back here.\n",
+  }];
+  saveDrafts(drafts);
+
+  let currentId = drafts[0].id;
+
+  // === DOM refs ===
+  const $ = (id) => document.getElementById(id);
+  const tEl = $("title"), dEl = $("dek"), bEl = $("body");
+  const tagEl = $("tag"), dateEl = $("date"), statusEl = $("status"), slugEl = $("slug");
+  const crumbSlug = $("crumb-slug"), saveState = $("save-state");
+  const previewEl = $("preview"), draftsEl = $("drafts");
+
+  function curDraft() { return drafts.find(d => d.id === currentId); }
+
+  function renderDraftsList() {
+    draftsEl.innerHTML = drafts.map(d => `
+      <div class="draft ${d.id === currentId ? "active" : ""}" data-id="${d.id}">
+        <div class="t">${d.title || "(untitled)"}</div>
+        <div class="m">
+          <span>${d.tag} · ${d.date}</span>
+          <span class="st" data-s="${d.status}">${d.status}</span>
+        </div>
+      </div>
+    `).join("");
+    draftsEl.querySelectorAll(".draft").forEach(el => {
+      el.addEventListener("click", () => { currentId = el.dataset.id; loadDraft(); });
+    });
+  }
+
+  function loadDraft() {
+    const d = curDraft();
+    if (!d) return;
+    tEl.value = d.title; dEl.value = d.dek;
+    tagEl.value = d.tag; dateEl.value = d.date;
+    statusEl.value = d.status; slugEl.value = d.slug;
+    bEl.value = d.body;
+    crumbSlug.textContent = d.slug || "untitled";
+    renderDraftsList();
+    renderPreview();
+    setSaveState("saved");
+  }
+
+  function persist() {
+    const d = curDraft();
+    if (!d) return;
+    d.title = tEl.value; d.dek = dEl.value;
+    d.tag = tagEl.value; d.date = dateEl.value;
+    d.status = statusEl.value; d.slug = slugEl.value;
+    d.body = bEl.value;
+    d.updated = Date.now();
+    saveDrafts(drafts);
+    crumbSlug.textContent = d.slug || "untitled";
+    renderDraftsList();
+    setSaveState("saved");
+  }
+
+  let saveTimer = null;
+  function setSaveState(state) {
+    saveState.className = "save-state " + state;
+    saveState.textContent = state === "saved" ? "● SAVED" : state === "dirty" ? "● UNSAVED" : "● SAVING";
+  }
+  function markDirty() {
+    setSaveState("dirty");
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { persist(); renderPreview(); }, 600);
+  }
+
+  [tEl, dEl, tagEl, dateEl, statusEl, slugEl, bEl].forEach(el => {
+    el.addEventListener("input", markDirty);
+    el.addEventListener("change", markDirty);
+  });
+
+  // === minimal markdown → html ===
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]);
+  }
+  function md2html(src) {
+    src = "\n" + src + "\n";
+    let html = escapeHtml(src);
+
+    // code blocks (```)
+    html = html.replace(/```([\s\S]*?)```/g, (_, code) =>
+      `<pre style="background:rgba(0,229,255,0.06); border:1px solid rgba(0,229,255,0.25); padding:10px; font-family:'JetBrains Mono',monospace; font-size:11px; overflow:auto;"><code>${code}</code></pre>`
+    );
+
+    // headings
+    html = html.replace(/^###\s+(.+)$/gm, "<h3>$1</h3>");
+    html = html.replace(/^##\s+(.+)$/gm,  "<h2>$1</h2>");
+    html = html.replace(/^#\s+(.+)$/gm,   "<h1>$1</h1>");
+    // hr
+    html = html.replace(/^---$/gm, "<hr style='border:0; border-top:1px solid rgba(255,255,255,0.15);' />");
+    // blockquote
+    html = html.replace(/^&gt;\s+(.+)$/gm, "<blockquote>$1</blockquote>");
+    // lists
+    html = html.replace(/(^|\n)((?:- .+\n?)+)/g, (m, pre, block) => {
+      const items = block.trim().split("\n").map(l => l.replace(/^- /, "")).map(li => `<li>${li}</li>`).join("");
+      return pre + "<ul>" + items + "</ul>";
+    });
+    // inline
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
+    html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    // paragraphs (very loose)
+    html = html.replace(/\n\n+/g, "</p><p>");
+    html = "<p>" + html + "</p>";
+    html = html.replace(/<p>(<h\d|<blockquote|<ul|<pre|<hr)/g, "$1");
+    html = html.replace(/(<\/h\d>|<\/blockquote>|<\/ul>|<\/pre>)<\/p>/g, "$1");
+    return html;
+  }
+
+  function renderPreview() {
+    const t = tEl.value.trim();
+    const d = dEl.value.trim();
+    const html = md2html(bEl.value);
+    previewEl.innerHTML = (t ? `<h1>${escapeHtml(t)}</h1>` : "") +
+                         (d ? `<p style="color:#5e6770; font-style:italic;">${escapeHtml(d)}</p>` : "") +
+                         html;
+    // stats
+    const txt = bEl.value;
+    const words = (txt.match(/\S+/g) || []).length;
+    const heads = (txt.match(/^#{1,3}\s+/gm) || []).length;
+    $("s-words").textContent = words.toLocaleString();
+    $("s-chars").textContent = txt.length.toLocaleString();
+    $("s-read").textContent  = Math.max(1, Math.round(words / 220)) + " m";
+    $("s-hd").textContent    = heads;
+  }
+
+  // === toolbar ===
+  document.querySelectorAll(".md-tools button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const a = btn.dataset.md;
+      const b = btn.dataset.md2 || "";
+      const s = bEl.selectionStart, e = bEl.selectionEnd;
+      const sel = bEl.value.slice(s, e);
+      const ins = a + sel + b;
+      bEl.value = bEl.value.slice(0, s) + ins + bEl.value.slice(e);
+      bEl.focus();
+      bEl.selectionStart = s + a.length;
+      bEl.selectionEnd = s + a.length + sel.length;
+      markDirty();
+    });
+  });
+
+  // === actions ===
+  $("new-btn").addEventListener("click", () => {
+    const d = newDraft();
+    drafts.unshift(d);
+    saveDrafts(drafts);
+    currentId = d.id;
+    loadDraft();
+    tEl.focus();
+  });
+
+  $("save-btn").addEventListener("click", () => { persist(); renderPreview(); });
+
+  $("publish-btn").addEventListener("click", async () => {
+    const d = curDraft();
+    d.status = "published";
+    persist();
+    renderPreview();
+    try {
+      await setDoc(doc(db, "posts", d.slug), {
+        id: d.slug,
+        title: d.title,
+        dek: d.dek,
+        tag: d.tag,
+        date: d.date,
+        status: "published",
+        slug: d.slug,
+        body: d.body,
+        updatedAt: Date.now(),
+      });
+      const btn = $("publish-btn");
+      const orig = btn.textContent;
+      btn.textContent = "PUBLISHED ✓";
+      setTimeout(() => { btn.textContent = orig; }, 2000);
+    } catch (err) {
+      alert("Firebase error: " + err.message);
+    }
+  });
+
+  $("export-btn").addEventListener("click", () => {
+    const d = curDraft();
+    const frontmatter = `---\ntitle: "${d.title}"\ndek: "${d.dek}"\ntag: ${d.tag}\ndate: ${d.date}\nstatus: ${d.status}\nslug: ${d.slug}\n---\n\n`;
+    const blob = new Blob([frontmatter + d.body], { type: "text/markdown" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (d.slug || "untitled") + ".md";
+    a.click();
+  });
+
+  $("copy-btn").addEventListener("click", async () => {
+    await navigator.clipboard.writeText(md2html(bEl.value));
+    const btn = $("copy-btn");
+    const orig = btn.textContent;
+    btn.textContent = "COPIED";
+    setTimeout(() => { btn.textContent = orig; }, 1200);
+  });
+
+  $("delete-btn").addEventListener("click", () => {
+    if (!confirm("Delete this draft?")) return;
+    drafts = drafts.filter(d => d.id !== currentId);
+    if (!drafts.length) drafts = [newDraft()];
+    saveDrafts(drafts);
+    currentId = drafts[0].id;
+    loadDraft();
+  });
+
+  // === keyboard shortcuts ===
+  window.addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      e.preventDefault();
+      persist(); renderPreview();
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      $("publish-btn").click();
+    }
+    if (e.key === "Escape" && admin.classList.contains("open")) {
+      e.preventDefault();
+      lock();
+    }
+  });
+
+  // === fetch from firebase ===
+  $("fetch-btn").addEventListener("click", async () => {
+    const btn = $("fetch-btn");
+    btn.textContent = "LOADING…";
+    try {
+      const snap = await getDocs(collection(db, "posts"));
+      snap.forEach(docSnap => {
+        const p = docSnap.data();
+        const existing = drafts.find(d => d.slug === p.slug);
+        if (!existing) {
+          drafts.unshift({
+            id: "d-" + p.slug,
+            title: p.title || "",
+            dek: p.dek || "",
+            tag: p.tag || "RESEARCH",
+            date: p.date || "",
+            status: p.status || "published",
+            slug: p.slug || "",
+            body: p.body || "",
+            updated: p.updatedAt || Date.now(),
+          });
+        }
+      });
+      saveDrafts(drafts);
+      renderDraftsList();
+      btn.textContent = "LOADED ✓";
+    } catch (err) {
+      alert("Firebase error: " + err.message);
+      btn.textContent = "↓ LOAD FROM FIREBASE";
+    }
+    setTimeout(() => { btn.textContent = "↓ LOAD FROM FIREBASE"; }, 2000);
+  });
+
+  // clock
+  function tick() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2,"0");
+    $("clock").textContent = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
+  }
+  tick(); setInterval(tick, 1000);
+
+  loadDraft();
+</script>
+</body>
+</html>

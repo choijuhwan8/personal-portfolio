@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Writing — Choi Juhwan</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/base.css" />
+<link rel="stylesheet" href="styles/v3.css" />
+<style>
+  /* plain solid bg — no animation */
+  html, body { background: #0d0e10; min-height: 100%; }
+  body { margin: 0; font-family: "JetBrains Mono", monospace; color: #e6ecec; font-size: 13px; line-height: 1.55; }
+  .v3 .grid-bg { display: none !important; }
+  .v3 .grid-bg.futuristic { display: none !important; }
+  .archive-root { background: #0d0e10; min-height: 100vh; position: relative; }
+
+  /* page header */
+  .ar-head {
+    display: grid;
+    grid-template-columns: 220px 1fr 220px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--cyan, #00e5ff);
+    font-size: 11px; letter-spacing: 0.16em; color: #5e6770;
+    background: #0d0e10;
+  }
+  .ar-head a { color: #00e5ff; }
+  .ar-head .center { text-align: center; color: #00e5ff; }
+  .ar-head .right { text-align: right; }
+  .ar-head b { color: #e6ecec; font-weight: 600; }
+
+  .ar-shell {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 56px 32px 80px;
+  }
+
+  /* big title */
+  .ar-title {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    border-bottom: 1px solid #00e5ff;
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+  }
+  .ar-title .stamp {
+    display: inline-block;
+    font-size: 10px; letter-spacing: 0.2em; color: #00e5ff;
+    border: 1px solid #00e5ff;
+    padding: 4px 8px;
+    margin-bottom: 18px;
+  }
+  .ar-title h1 {
+    font-family: "Space Grotesk", "JetBrains Mono", sans-serif;
+    font-size: clamp(72px, 10vw, 140px);
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: #fff;
+  }
+  .ar-title h1 .underline {
+    color: #00e5ff;
+    text-decoration: underline;
+    text-decoration-thickness: 4px;
+    text-underline-offset: 10px;
+  }
+  .ar-title .meta {
+    text-align: right;
+    font-size: 11px; letter-spacing: 0.18em; color: #5e6770;
+    line-height: 1.8;
+  }
+  .ar-title .meta b { color: #00e5ff; }
+
+  /* filter bar */
+  .ar-filter {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    align-items: center;
+  }
+  .ar-filter .l { font-size: 10px; letter-spacing: 0.2em; color: #5e6770; margin-right: 8px; }
+  .ar-filter button {
+    font-family: inherit;
+    font-size: 10px; letter-spacing: 0.16em;
+    padding: 6px 10px;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #c0c8cc;
+    cursor: pointer;
+    transition: all 100ms;
+  }
+  .ar-filter button:hover { border-color: #00e5ff; color: #00e5ff; }
+  .ar-filter button.active { background: #00e5ff; color: #000; border-color: #00e5ff; }
+  .ar-filter input {
+    margin-left: auto;
+    font-family: inherit; font-size: 12px;
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #fff;
+    width: 220px;
+  }
+  .ar-filter input:focus { outline: none; border-color: #00e5ff; }
+
+  /* year sections */
+  .year-h {
+    font-family: "Space Grotesk", "JetBrains Mono", sans-serif;
+    font-size: 56px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: rgba(255,255,255,0.10);
+    margin: 48px 0 8px;
+    border-top: 1px solid rgba(255,255,255,0.10);
+    padding-top: 24px;
+  }
+  .year-h span { color: #00e5ff; font-size: 12px; letter-spacing: 0.2em; margin-left: 16px; vertical-align: middle; font-weight: 400; font-family: "JetBrains Mono", monospace; }
+
+  /* post rows */
+  .ar-post {
+    display: grid;
+    grid-template-columns: 50px 110px 1fr 110px 110px;
+    gap: 20px;
+    padding: 22px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    align-items: baseline;
+    text-decoration: none;
+    color: inherit;
+    transition: background 80ms;
+  }
+  .ar-post:hover { background: rgba(0,229,255,0.05); padding-left: 12px; }
+  .ar-post .idx { color: #5e6770; font-size: 11px; }
+  .ar-post .date { color: #00e5ff; font-size: 12px; }
+  .ar-post .ttl {
+    font-family: "Space Grotesk", "JetBrains Mono", sans-serif;
+    font-size: 28px; font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    color: #fff;
+  }
+  .ar-post:hover .ttl { color: #00e5ff; }
+  .ar-post .dek {
+    font-size: 13px; color: #98a3aa;
+    margin-top: 6px; max-width: 72ch; line-height: 1.55;
+  }
+  .ar-post .tag { font-size: 10px; letter-spacing: 0.18em; color: #ff4dd2; }
+  .ar-post .stat { font-size: 11px; color: #5e6770; text-align: right; }
+  .ar-post .stat b { color: #fff; display: block; font-size: 14px; }
+
+  .ar-foot {
+    padding: 16px 32px;
+    font-size: 10px; letter-spacing: 0.2em; color: #5e6770;
+    display: flex; justify-content: space-between;
+    max-width: 1400px; margin: 0 auto;
+    border-top: 1px solid rgba(255,255,255,0.10);
+  }
+  .ar-foot span { color: #00e5ff; }
+</style>
+</head>
+<body>
+
+<div class="archive-root">
+
+  <header class="ar-head">
+    <div>DOC <b>writing / index</b> · rev 014</div>
+    <div class="center"><a href="index.html">← / INDEX</a> · ARCHIVE · v2026.05</div>
+    <div class="right">UPDATED <b>2026.05.04</b></div>
+  </header>
+
+  <div class="ar-shell">
+
+    <div class="ar-title">
+      <div>
+        <span class="stamp">/ ALL WRITING</span>
+        <h1>The <span class="underline">writing</span>.</h1>
+      </div>
+      <div class="meta">
+        <div><b id="count">26</b> POSTS</div>
+        <div>SINCE 2022.03</div>
+        <div>UPDATED WEEKLY</div>
+      </div>
+    </div>
+
+    <div class="ar-filter">
+      <span class="l">/ FILTER</span>
+      <button class="active" data-tag="ALL">ALL</button>
+      <button data-tag="RESEARCH">RESEARCH</button>
+      <button data-tag="THESIS">THESIS</button>
+      <button data-tag="PRIMER">PRIMER</button>
+      <button data-tag="OPINION">OPINION</button>
+      <button data-tag="FIELD NOTES">FIELD NOTES</button>
+      <input id="search" type="text" placeholder="search titles / topics…" />
+    </div>
+
+    <div id="list"></div>
+
+  </div>
+
+  <footer class="ar-foot">
+    <div>© 2026 CHOI JUHWAN · <span>WRITING ARCHIVE</span></div>
+    <div>SET IN <span>SPACE GROTESK + JETBRAINS MONO</span></div>
+  </footer>
+
+</div>
+
+<script src="data.js"></script>
+<script>
+  // Build out a denser archive: real 5 posts + a long tail of plausible ones
+  const real = window.PORTFOLIO_DATA.posts;
+  const tail = [
+    {date:"2025.12.19", tag:"RESEARCH",   readtime:"18 MIN", title:"Restaking after EigenLayer: the second wave",                 dek:"Mapping the post-EigenLayer landscape — Symbiotic, Karak, and what 'restaking' starts to mean when there are five of them."},
+    {date:"2025.11.22", tag:"THESIS",     readtime:"7 MIN",  title:"The fee market is the product",                                dek:"Why I keep returning to the same claim: every L1 worth thinking about is, structurally, a fee market with a UI."},
+    {date:"2025.10.30", tag:"FIELD NOTES",readtime:"10 MIN", title:"A weekend with Monad",                                          dek:"Notes from sitting with the testnet, the docs, and a stopwatch. Skeptical going in, less skeptical going out."},
+    {date:"2025.10.04", tag:"OPINION",    readtime:"5 MIN",  title:"Stop calling it 'DePIN'",                                       dek:"A taxonomy gripe. The acronym is doing real damage to how we reason about three very different things."},
+    {date:"2025.09.12", tag:"PRIMER",     readtime:"16 MIN", title:"Shared sequencers, plainly",                                    dek:"What a shared sequencer is, what problem it solves, and where the hard parts actually are. No diagrams of trains."},
+    {date:"2025.08.21", tag:"RESEARCH",   readtime:"24 MIN", title:"Counting MEV on Base, six months in",                          dek:"A long, numbery look at what searchers are extracting on Base, with a side note on how much of it leaks back to Coinbase."},
+    {date:"2025.07.30", tag:"THESIS",     readtime:"8 MIN",  title:"Wallets are routers",                                          dek:"Once you stop seeing the wallet as a key manager and start seeing it as a router, half the intent-architecture roadmap rewrites itself."},
+    {date:"2025.06.15", tag:"OPINION",    readtime:"4 MIN",  title:"Airdrops are not marketing",                                   dek:"A short note on why treating an airdrop as a CAC line item ends badly, with two examples."},
+    {date:"2025.05.02", tag:"PRIMER",     readtime:"13 MIN", title:"Account abstraction without the lecture",                      dek:"AA explained without any of the EIP numbers. If you ship to retail users, this is the only writeup you need."},
+    {date:"2025.04.10", tag:"RESEARCH",   readtime:"19 MIN", title:"The Curve renaissance, modeled",                               dek:"What happened to Curve TVL after the depeg cycle, and a small model that fits most of it with embarrassingly few parameters."},
+    {date:"2025.03.18", tag:"FIELD NOTES",readtime:"9 MIN",  title:"Three weeks running a Bitcoin node",                            dek:"Why I did it, what broke, what I now believe about the 'just run a node' meme."},
+    {date:"2025.02.20", tag:"THESIS",     readtime:"6 MIN",  title:"Liquidity is a UX problem",                                    dek:"A short essay arguing that most of what we call 'liquidity fragmentation' is downstream of bad routing, not bad markets."},
+    {date:"2025.01.08", tag:"RESEARCH",   readtime:"17 MIN", title:"Onchain credit, where we actually are",                        dek:"A skeptic's tour of onchain credit in early 2025 — what's working, what's just rehypothecation in a costume."},
+    {date:"2024.12.02", tag:"OPINION",    readtime:"3 MIN",  title:"The case against ETF flow takes",                              dek:"Why staring at ETF flows is the new staring at exchange balances. A short rant."},
+    {date:"2024.11.11", tag:"PRIMER",     readtime:"21 MIN", title:"What 'modular' actually buys you",                             dek:"The honest version of the modular thesis, with the parts that work and the parts that are still vibes."},
+    {date:"2024.10.04", tag:"FIELD NOTES",readtime:"12 MIN", title:"Two months of Farcaster",                                       dek:"Numbers, screenshots, and one strong opinion about what the protocol gets right that Twitter clones don't."},
+    {date:"2024.08.21", tag:"RESEARCH",   readtime:"15 MIN", title:"L2 fee compression — how low can it go?",                       dek:"Pricing out the floor for L2 fees once 4844 settles in, and what that implies for sequencer revenue."},
+    {date:"2024.07.10", tag:"THESIS",     readtime:"8 MIN",  title:"Three good reasons to be onchain",                              dek:"A short, sober list. If you can't put your product against at least one of these, you probably shouldn't be onchain."},
+    {date:"2024.06.05", tag:"OPINION",    readtime:"5 MIN",  title:"Points programs, one year in",                                  dek:"Following up on 'Points are debt' — how the field actually played out, and which of my predictions look stupid in hindsight."},
+    {date:"2024.04.28", tag:"PRIMER",     readtime:"14 MIN", title:"A useful mental model for solver markets",                      dek:"How to think about solvers without immediately drowning in jargon. Useful for product folks and skeptics alike."},
+    {date:"2024.03.12", tag:"RESEARCH",   readtime:"11 MIN", title:"What I learned reading a year of Flashbots PRs",                dek:"A reading log, with surprises. Mostly: how much of the actual work is plumbing, not 'design'."},
+  ];
+
+  const all = [...real, ...tail].map((p, i) => ({...p, id: p.id ?? ("post-" + i)}));
+  document.getElementById("count").textContent = all.length;
+
+  function fmtViews(seed) {
+    const n = (seed.charCodeAt(0) * 137 + seed.charCodeAt(seed.length-1) * 41) % 39000 + 1200;
+    return n.toLocaleString();
+  }
+
+  let currentTag = "ALL";
+  let currentSearch = "";
+
+  function render() {
+    const filtered = all
+      .filter(p => currentTag === "ALL" || p.tag === currentTag)
+      .filter(p => !currentSearch || (p.title + " " + p.dek).toLowerCase().includes(currentSearch.toLowerCase()))
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    const byYear = {};
+    filtered.forEach(p => {
+      const y = p.date.slice(0, 4);
+      (byYear[y] = byYear[y] || []).push(p);
+    });
+
+    const years = Object.keys(byYear).sort().reverse();
+    let html = "";
+    let idx = 0;
+    for (const y of years) {
+      html += `<div class="year-h">${y}<span>${byYear[y].length} POSTS</span></div>`;
+      for (const p of byYear[y]) {
+        idx++;
+        const views = p.stats?.views ?? fmtViews(p.title);
+        html += `
+          <a class="ar-post" href="post.html">
+            <span class="idx">/${String(idx).padStart(3,"0")}</span>
+            <span class="date">${p.date}</span>
+            <div>
+              <div class="ttl">${p.title}</div>
+              <div class="dek">${p.dek}</div>
+            </div>
+            <span class="tag">${p.tag}</span>
+            <span class="stat"><b>${views}</b>views<br/>${p.readtime}</span>
+          </a>`;
+      }
+    }
+    if (!filtered.length) {
+      html = `<div style="padding:48px;text-align:center;color:#5e6770;border:1px dashed rgba(255,255,255,0.18);">// no matches</div>`;
+    }
+    document.getElementById("list").innerHTML = html;
+  }
+  render();
+
+  document.querySelectorAll(".ar-filter button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".ar-filter button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentTag = btn.dataset.tag;
+      render();
+    });
+  });
+  document.getElementById("search").addEventListener("input", e => {
+    currentSearch = e.target.value;
+    render();
+  });
+
+  // secret: type "admin"
+  let buf = "";
+  window.addEventListener("keydown", e => {
+    if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+    buf = (buf + e.key.toLowerCase()).slice(-5);
+    if (buf === "admin") window.location.href = "admin.html";
+  });
+</script>
+</body>
+</html>

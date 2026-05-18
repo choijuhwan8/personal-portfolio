@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Choi Juhwan — Portfolio</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles/base.css" />
+<link rel="stylesheet" href="styles/v1.css" />
+<link rel="stylesheet" href="styles/v2.css" />
+<link rel="stylesheet" href="styles/v3.css" />
+<style>
+  /* canvas-host body bg darker */
+  body { background: #07080a; }
+</style>
+</head>
+<body>
+
+<div id="canvas-root"></div>
+
+<!-- React + Babel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- Data + shared -->
+<script src="data.js"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="shared.jsx"></script>
+
+<!-- Variations -->
+<script type="text/babel" src="v1-terminal.jsx"></script>
+<script type="text/babel" src="v2-marquee.jsx"></script>
+<script type="text/babel" src="v3-archive.jsx"></script>
+
+<!-- Mount -->
+<script type="text/babel">
+  const { DesignCanvas, DCSection, DCArtboard } = window;
+
+  function App() {
+    return (
+      <DesignCanvas
+        title="CHOI JUHWAN — PORTFOLIO"
+        subtitle="3 directions · brutalist tech · dark + electric"
+      >
+        <DCSection id="dirs" title="DIRECTIONS">
+          <DCArtboard
+            id="v1"
+            label="V1 — TERMINAL / BLOOMBERG"
+            width={1280}
+            height={4600}
+          >
+            <window.V1Terminal />
+          </DCArtboard>
+
+          <DCArtboard
+            id="v2"
+            label="V2 — OVERSIZED MARQUEE"
+            width={1280}
+            height={5200}
+          >
+            <window.V2Marquee />
+          </DCArtboard>
+
+          <DCArtboard
+            id="v3"
+            label="V3 — WIREFRAME ARCHIVE"
+            width={1280}
+            height={4900}
+          >
+            <window.V3Archive />
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+    );
+  }
+
+  const root = ReactDOM.createRoot(document.getElementById("canvas-root"));
+  root.render(<App />);
+</script>
+
+</body>
+</html>
