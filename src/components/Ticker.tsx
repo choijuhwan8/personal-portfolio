@@ -1,14 +1,22 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const SEEDS = [
-  { sym: "BTC", base: 71240 }, { sym: "ETH", base: 3812.4 },
-  { sym: "SOL", base: 174.3 }, { sym: "STETH", base: 3804.1 },
-  { sym: "EZETH", base: 3780.6 }, { sym: "TIA", base: 8.42 },
-  { sym: "ARB", base: 1.13 }, { sym: "OP", base: 2.41 },
-  { sym: "PYTH", base: 0.412 }, { sym: "BLAST", base: 0.028 },
-  { sym: "ENA", base: 0.731 }, { sym: "JUP", base: 1.18 },
+const SYMBOLS = [
+  { sym: "BTC",   id: "bitcoin" },
+  { sym: "ETH",   id: "ethereum" },
+  { sym: "SOL",   id: "solana" },
+  { sym: "STETH", id: "staked-ether" },
+  { sym: "EZETH", id: "renzo-restaked-eth" },
+  { sym: "TIA",   id: "celestia" },
+  { sym: "ARB",   id: "arbitrum" },
+  { sym: "OP",    id: "optimism" },
+  { sym: "PYTH",  id: "pyth-network" },
+  { sym: "BLAST", id: "blast" },
+  { sym: "ENA",   id: "ethena" },
+  { sym: "JUP",   id: "jupiter" },
 ];
+
+type TickItem = { sym: string; price: number; delta: number };
 
 function fmt(price: number) {
   if (price >= 1000) return price.toFixed(0);
@@ -17,28 +25,32 @@ function fmt(price: number) {
   return price.toFixed(4);
 }
 
+async function fetchPrices(): Promise<TickItem[]> {
+  const res = await fetch("/api/prices");
+  if (!res.ok) throw new Error("fetch failed");
+  const data = await res.json();
+  return SYMBOLS.map(({ sym, id }) => ({
+    sym,
+    price: data[id]?.usd ?? 0,
+    delta: data[id]?.usd_24h_change ?? 0,
+  })).filter((t) => t.price > 0);
+}
+
 export default function Ticker() {
-  const [tick, setTick] = useState(() =>
-    SEEDS.map((s) => ({ ...s, price: s.base, delta: 0 }))
-  );
+  const [tick, setTick] = useState<TickItem[]>([]);
 
   useEffect(() => {
-    // seed initial deltas client-side only to avoid hydration mismatch
-    setTick((prev) =>
-      prev.map((p) => ({ ...p, delta: (Math.random() - 0.5) * 4 }))
-    );
+    // initial fetch
+    fetchPrices().then(setTick).catch(() => {});
 
+    // refresh every 30s
     const id = setInterval(() => {
-      setTick((prev) =>
-        prev.map((p) => {
-          const drift = (Math.random() - 0.5) * 0.012;
-          const next = Math.max(0.000001, p.price * (1 + drift));
-          return { ...p, price: next, delta: ((next - p.base) / p.base) * 100 };
-        })
-      );
-    }, 1600);
+      fetchPrices().then(setTick).catch(() => {});
+    }, 30_000);
     return () => clearInterval(id);
   }, []);
+
+  if (tick.length === 0) return null;
 
   const items = [...tick, ...tick];
   return (
