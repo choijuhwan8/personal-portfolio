@@ -33,6 +33,7 @@ function saveDrafts(arr: Draft[]) { localStorage.setItem(STORE_KEY, JSON.stringi
 
 export default function AdminPage() {
   const [unlocked, setUnlocked] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -247,30 +248,37 @@ console.log(hello);
   }
 
   return (
-    <div style={{ background: "#0d0e10", color: "#e6ecec", minHeight: "100vh", fontFamily: "JetBrains Mono, monospace", fontSize: 13 }}>
-      <header style={{ display: "grid", gridTemplateColumns: "240px 1fr 240px", padding: "12px 24px", borderBottom: "1px solid #00e5ff", fontSize: 11, letterSpacing: "0.16em", color: "#5e6770", background: "#0d0e10", position: "sticky", top: 0, zIndex: 10 }}>
-        <div>DOC <b style={{ color: "#e6ecec" }}>admin / compose</b></div>
+    <div style={{ background: "#0d0e10", color: "#e6ecec", height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "JetBrains Mono, monospace", fontSize: 13 }}>
+      <header style={{ display: "grid", gridTemplateColumns: `${sidebarOpen ? "240px" : "40px"} 1fr 320px`, padding: "12px 24px", borderBottom: "1px solid #00e5ff", fontSize: 11, letterSpacing: "0.16em", color: "#5e6770", background: "#0d0e10", flexShrink: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={() => setSidebarOpen((o) => !o)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", color: "#5e6770", cursor: "pointer", fontFamily: "inherit", fontSize: 11, padding: "2px 6px", lineHeight: 1 }}>{sidebarOpen ? "←" : "→"}</button>
+          {sidebarOpen && <span>DOC <b style={{ color: "#e6ecec" }}>admin / compose</b></span>}
+        </div>
         <div style={{ textAlign: "center", color: "#00e5ff" }}><Link href="/" style={{ color: "#00e5ff" }}>← / SITE</Link> · <Link href="/writing" style={{ color: "#00e5ff" }}>/ WRITING</Link></div>
         <div style={{ textAlign: "right", color: saveState === "saved" ? "#aaff00" : saveState === "dirty" ? "#ff4dd2" : "#5e6770" }}>● {saveState.toUpperCase()}</div>
       </header>
 
-      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr 320px", minHeight: "calc(100vh - 42px)" }}>
-        <aside style={{ borderRight: "1px solid rgba(255,255,255,0.1)", padding: "24px 16px", background: "#14161a" }}>
-          <button onClick={() => { const d = newDraft(); setDrafts((p) => { const n = [d, ...p]; saveDrafts(n); return n; }); setCurrentId(d.id); }} style={{ width: "100%", border: "1px solid #00e5ff", color: "#00e5ff", padding: "10px 12px", fontSize: 11, letterSpacing: "0.16em", marginBottom: 8, cursor: "pointer", background: "none", fontFamily: "inherit" }}>+ NEW DRAFT</button>
-          <button onClick={fetchFromFirebase} style={{ width: "100%", border: "1px solid #aaff00", color: "#aaff00", padding: "10px 12px", fontSize: 11, letterSpacing: "0.16em", marginBottom: 18, cursor: "pointer", background: "none", fontFamily: "inherit" }}>{fetchState || "↓ LOAD FROM FIREBASE"}</button>
-          <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#5e6770", marginBottom: 10 }}>/ DRAFTS</div>
-          {drafts.map((d) => (
-            <div key={d.id} onClick={() => setCurrentId(d.id)} style={{ padding: "10px 12px", borderTop: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderLeft: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderRight: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderBottom: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", background: d.id === currentId ? "rgba(0,229,255,0.05)" : "none", marginBottom: 2 }}>
-              <div style={{ fontFamily: "Space Grotesk, monospace", fontSize: 14, fontWeight: 600, lineHeight: 1.2, marginBottom: 6 }}>{d.title || "(untitled)"}</div>
-              <div style={{ fontSize: 10, letterSpacing: "0.14em", color: "#5e6770", display: "flex", justifyContent: "space-between" }}>
-                <span>{d.tag} · {d.date}</span>
-                <span style={{ color: d.status === "published" ? "#aaff00" : "#5e6770" }}>{d.status}</span>
-              </div>
+      <div style={{ display: "grid", gridTemplateColumns: `${sidebarOpen ? "240px" : "40px"} 1fr 320px`, flex: 1, overflow: "hidden" }}>
+        <aside style={{ borderRight: "1px solid rgba(255,255,255,0.1)", background: "#14161a", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {sidebarOpen && (
+            <div style={{ padding: "24px 16px", overflowY: "auto", flex: 1 }}>
+              <button onClick={() => { const d = newDraft(); setDrafts((p) => { const n = [d, ...p]; saveDrafts(n); return n; }); setCurrentId(d.id); }} style={{ width: "100%", border: "1px solid #00e5ff", color: "#00e5ff", padding: "10px 12px", fontSize: 11, letterSpacing: "0.16em", marginBottom: 8, cursor: "pointer", background: "none", fontFamily: "inherit" }}>+ NEW DRAFT</button>
+              <button onClick={fetchFromFirebase} style={{ width: "100%", border: "1px solid #aaff00", color: "#aaff00", padding: "10px 12px", fontSize: 11, letterSpacing: "0.16em", marginBottom: 18, cursor: "pointer", background: "none", fontFamily: "inherit" }}>{fetchState || "↓ LOAD FROM FIREBASE"}</button>
+              <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#5e6770", marginBottom: 10 }}>/ DRAFTS</div>
+              {drafts.map((d) => (
+                <div key={d.id} onClick={() => setCurrentId(d.id)} style={{ padding: "10px 12px", borderTop: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderLeft: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderRight: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderBottom: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", background: d.id === currentId ? "rgba(0,229,255,0.05)" : "none", marginBottom: 2 }}>
+                  <div style={{ fontFamily: "Space Grotesk, monospace", fontSize: 14, fontWeight: 600, lineHeight: 1.2, marginBottom: 6 }}>{d.title || "(untitled)"}</div>
+                  <div style={{ fontSize: 10, letterSpacing: "0.14em", color: "#5e6770", display: "flex", justifyContent: "space-between" }}>
+                    <span>{d.tag} · {d.date}</span>
+                    <span style={{ color: d.status === "published" ? "#aaff00" : "#5e6770" }}>{d.status}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </aside>
 
-        <main style={{ padding: "24px 32px 80px", minWidth: 0 }}>
+        <main style={{ padding: "24px 32px 80px", minWidth: 0, overflowY: "auto" }}>
           {cur && (
             <>
               <input value={cur.title} onChange={(e) => update("title", e.target.value)} placeholder="A title that says something." style={{ width: "100%", fontFamily: "Space Grotesk, monospace", fontSize: 48, fontWeight: 700, letterSpacing: "-0.03em", background: "none", border: 0, color: "#e6ecec", marginBottom: 16, lineHeight: 1 }} />
@@ -314,7 +322,7 @@ console.log(hello);
           )}
         </main>
 
-        <aside style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", padding: "24px 20px", background: "rgba(20,22,26,0.6)", fontSize: 12, color: "#5e6770" }}>
+        <aside style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", padding: "24px 20px", background: "rgba(20,22,26,0.6)", fontSize: 12, color: "#5e6770", overflowY: "auto" }}>
           <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#5e6770", marginBottom: 10 }}>/ PREVIEW</div>
           {cur && (
             <div style={{ border: "1px solid rgba(255,255,255,0.1)", padding: 16, background: "#0d0e10", minHeight: 200, fontFamily: "Newsreader, serif", color: "#c0c8cc", fontSize: 14, lineHeight: 1.6 }}>
