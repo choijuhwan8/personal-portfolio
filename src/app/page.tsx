@@ -239,7 +239,7 @@ export default function Home() {
           <section id="contact" className="v3-contact">
             <span style={{ fontSize: 10, letterSpacing: "0.2em", color: "var(--cyan)" }}>/ 05 — CONTACT</span>
             <h2>Get in <span className="underline">touch</span>.</h2>
-            <p style={{ maxWidth: "50ch", color: "#c0c8cc", fontSize: 15, lineHeight: 1.6 }}>Best over email for long things. DMs open on X / Farcaster for everything else.</p>
+            <p style={{ maxWidth: "50ch", color: "#c0c8cc", fontSize: 15, lineHeight: 1.6 }}>Best over email for long things. DMs open on Telegram for everything else.</p>
             <div className="grid">
               {D.socials.map((s) => (
                 <a key={s.label} href={s.url}>
