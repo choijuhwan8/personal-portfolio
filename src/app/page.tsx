@@ -147,13 +147,13 @@ export default function Home() {
             )}
             {posts.slice(0, 4).map((p, i) => (
               <Link key={p.slug} className="post" href={`/writing/${p.slug}`}>
-                <span className="idx">/{String(i + 1).padStart(3, "0")}</span>
+                <span className="idx">/{String(posts.length - i).padStart(3, "0")}</span>
                 <span className="date">{p.date}</span>
                 <div>
                   <div className="ttl">{p.title}</div>
-                  <div className="dek">{p.dek}</div>
+                  <div className="dek">{p.dek && p.dek.length > 80 ? p.dek.slice(0, 80) + "…" : p.dek}</div>
                 </div>
-                <span className="tag">{p.tag}</span>
+                <span className="tag">{p.tag === "RESEARCH" ? "OPINION" : p.tag}</span>
                 <span className="stat"></span>
               </Link>
             ))}

@@ -28,6 +28,7 @@ export default function WritingPage() {
   });
   const years = Object.keys(byYear).sort().reverse();
 
+  const totalFiltered = filtered.length;
   let idx = 0;
   return (
     <div style={{ background: "#0d0e10", minHeight: "100vh" }}>
@@ -62,16 +63,17 @@ export default function WritingPage() {
             <div key={y}>
               <div className="year-h">{y}<span>{byYear[y].length} POSTS</span></div>
               {byYear[y].map((p) => {
+                const num = totalFiltered - idx;
                 idx++;
                 return (
                   <Link key={p.slug} className="ar-post" href={`/writing/${p.slug}`}>
-                    <span className="idx">/{String(idx).padStart(3, "0")}</span>
+                    <span className="idx">/{String(num).padStart(3, "0")}</span>
                     <span className="date">{p.date}</span>
                     <div>
                       <div className="ttl">{p.title}</div>
-                      <div className="dek">{p.dek}</div>
+                      <div className="dek">{p.dek && p.dek.length > 80 ? p.dek.slice(0, 80) + "…" : p.dek}</div>
                     </div>
-                    <span className="tag">{p.tag}</span>
+                    <span className="tag">{p.tag === "RESEARCH" ? "OPINION" : p.tag}</span>
                     <span className="stat"></span>
                   </Link>
                 );
