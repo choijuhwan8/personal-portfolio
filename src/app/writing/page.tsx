@@ -17,7 +17,7 @@ export default function WritingPage() {
   }, []);
 
   const filtered = posts
-    .filter((p) => tag === "ALL" || p.tag === tag)
+    .filter((p) => tag === "ALL" || p.tag === tag || (tag === "OPINION" && p.tag === "RESEARCH"))
     .filter((p) => !search || (p.title + " " + p.dek).toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
@@ -73,7 +73,7 @@ export default function WritingPage() {
                       <div className="ttl">{p.title}</div>
                       <div className="dek">{p.dek && p.dek.length > 80 ? p.dek.slice(0, 80) + "…" : p.dek}</div>
                     </div>
-                    <span className="tag">{p.tag === "RESEARCH" ? "OPINION" : p.tag}</span>
+                    <span className="tag" data-tag={p.tag === "RESEARCH" ? "OPINION" : p.tag}>{p.tag === "RESEARCH" ? "OPINION" : p.tag}</span>
                     <span className="stat"></span>
                   </Link>
                 );
