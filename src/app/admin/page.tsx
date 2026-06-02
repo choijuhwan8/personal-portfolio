@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Link from "next/link";
 
 const PASS = "letmein";
@@ -198,6 +199,29 @@ console.log(hello);
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = (cur.slug || "untitled") + ".md"; a.click();
   }
 
+  const [uploadState, setUploadState] = useState("");
+
+  async function handleImageDrop(e: React.DragEvent<HTMLTextAreaElement>) {
+    e.preventDefault();
+    const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith("image/"));
+    if (!file) return;
+    setUploadState("UPLOADING…");
+    try {
+      const storageRef = ref(storage, `post-images/${Date.now()}-${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      const ta = document.getElementById("body-ta") as HTMLTextAreaElement;
+      const s = ta.selectionStart;
+      const md = `![${file.name}](${url})`;
+      const next = ta.value.slice(0, s) + md + ta.value.slice(s);
+      update("body", next);
+      setUploadState("UPLOADED ✓");
+    } catch (e: any) {
+      setUploadState("ERROR: " + e.message);
+    }
+    setTimeout(() => setUploadState(""), 2000);
+  }
+
   function insertMd(a: string, b = "") {
     const ta = document.getElementById("body-ta") as HTMLTextAreaElement;
     if (!ta) return;
@@ -277,7 +301,8 @@ console.log(hello);
                 <span style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
                 {[["quote","> "],["list","- "]].map(([l,m]) => <button key={l} onClick={() => insertMd(m)} style={{ padding: "6px 10px", fontSize: 11, border: "1px solid transparent", color: "#5e6770", cursor: "pointer", fontFamily: "inherit" }}>{l}</button>)}
               </div>
-              <textarea id="body-ta" value={cur.body} onChange={(e) => update("body", e.target.value)} style={{ width: "100%", minHeight: 520, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", borderTop: 0, color: "#e6ecec", padding: 24, fontFamily: "JetBrains Mono, monospace", fontSize: 14, lineHeight: 1.7, resize: "vertical" }} />
+              <textarea id="body-ta" value={cur.body} onChange={(e) => update("body", e.target.value)} onDragOver={(e) => e.preventDefault()} onDrop={handleImageDrop} style={{ width: "100%", minHeight: 520, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", borderTop: 0, color: "#e6ecec", padding: 24, fontFamily: "JetBrains Mono, monospace", fontSize: 14, lineHeight: 1.7, resize: "vertical" }} />
+              {uploadState && <div style={{ fontSize: 11, letterSpacing: "0.16em", color: uploadState.startsWith("ERROR") ? "#ff4dd2" : "#aaff00", marginTop: 4 }}>{uploadState}</div>}
               <div style={{ marginTop: 20, display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button onClick={persist} style={{ padding: "12px 20px", background: "#00e5ff", color: "#000", border: "1px solid #00e5ff", fontSize: 11, letterSpacing: "0.18em", cursor: "pointer", fontFamily: "inherit" }}>SAVE DRAFT</button>
                 <button onClick={publish} style={{ padding: "12px 20px", border: "1px solid rgba(255,255,255,0.1)", color: "#e6ecec", fontSize: 11, letterSpacing: "0.18em", cursor: "pointer", fontFamily: "inherit" }}>{publishState || "PUBLISH →"}</button>
@@ -316,6 +341,11 @@ console.log(hello);
 
 function simplePreview(src: string): string {
   const codeBlocks: string[] = [];
+  const imageBlocks: string[] = [];
+  src = src.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
+    imageBlocks.push(`<img src='${url}' alt='${alt}' style='max-width:100%;border:1px solid rgba(255,255,255,0.1);margin:8px 0;display:block'/>`);
+    return `%%IMG${imageBlocks.length - 1}%%`;
+  });
   src = src.replace(/```([\s\S]*?)```/g, (_, code) => {
     const escaped = code.trim().replace(/[&<>"']/g, (c: string) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
     codeBlocks.push(`<pre style='background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.25);padding:10px;font-size:11px;overflow:auto;margin:8px 0'><code>${escaped}</code></pre>`);
@@ -325,6 +355,7 @@ function simplePreview(src: string): string {
   src = src.replace(/^>\s?(.+)$/gm, "%%BQ%%$1%%/BQ%%");
   let h = src.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
   h = h.replace(/%%CODE(\d+)%%/g, (_, i) => codeBlocks[+i]);
+  h = h.replace(/%%IMG(\d+)%%/g, (_, i) => imageBlocks[+i]);
   h = h.replace(/%%HR%%/g, "<hr style='border:0;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0'/>");
   h = h.replace(/^####\s+(.+)$/gm, "<h4 style='font-size:10px;letter-spacing:0.2em;color:#5e6770;text-transform:uppercase;margin-top:10px'>$1</h4>");
   h = h.replace(/^###\s+(.+)$/gm, "<h3 style='font-size:11px;letter-spacing:0.2em;color:#00e5ff;text-transform:uppercase;margin-top:14px'>$1</h3>");
