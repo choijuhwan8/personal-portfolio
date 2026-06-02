@@ -218,7 +218,7 @@ export default function Home() {
               <p>Off-chain: 35mm photography (mostly Seoul at night), running, and a long-running attempt to learn Mandarin.</p>
               <div style={{ marginTop: 24, padding: 16, border: "1px solid var(--cyan)", maxWidth: 420 }}>
                 <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "var(--cyan)", marginBottom: 8 }}>/ AVAILABILITY</div>
-                <div style={{ fontSize: 14, color: "#fff" }}>Open to <b style={{ color: "var(--cyan)" }}>research RFPs</b> and short consulting blocks (≤ 6 weeks). Not looking for full-time roles.</div>
+                <div style={{ fontSize: 14, color: "#fff" }}>Open to <b style={{ color: "var(--cyan)" }}>part-time or full-time roles</b>, including internships.</div>
               </div>
             </div>
             <div id="resume" className="resume">
