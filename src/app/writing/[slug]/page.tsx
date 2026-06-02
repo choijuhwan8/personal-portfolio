@@ -78,6 +78,7 @@ export default function PostPage() {
   if (!post) return <div style={{ background: "#0d0e10", color: "#ff4dd2", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, letterSpacing: "0.2em" }}>POST NOT FOUND</div>;
 
   const mins = readTime(post.body || "");
+  const displayTag = post.tag === "RESEARCH" ? "OPINION" : post.tag;
 
   return (
     <div className="post-root">
@@ -100,20 +101,20 @@ export default function PostPage() {
           <dl>
             <dt>POST_ID</dt><dd>{post.slug}</dd>
             <dt>DATE</dt><dd>{post.date}</dd>
-            <dt>TAG</dt><dd className="tag">{post.tag}</dd>
+            <dt>TAG</dt><dd className="tag">{displayTag}</dd>
             <dt>READ</dt><dd>{mins} MIN</dd>
           </dl>
         </aside>
 
         <article>
           <div className="crumbs">~ / writing / {(post.date || "").slice(0, 4)} / {post.slug}</div>
-          <span className="tag-badge">{post.tag}</span>
+          <span className="tag-badge">{displayTag}</span>
           <h1>{post.title}</h1>
           {post.dek && <p className="dek">{post.dek}</p>}
           <div className="meta-band">
             <div><span className="l">/ BY</span><span className="v">Choi Juhwan</span></div>
             <div><span className="l">/ PUBLISHED</span><span className="v">{post.date}</span></div>
-            <div><span className="l">/ TAG</span><span className="v">{post.tag}</span></div>
+            <div><span className="l">/ TAG</span><span className="v">{displayTag}</span></div>
             <div><span className="l">/ READ TIME</span><span className="v">{mins} MIN</span></div>
             <div><span className="l">/ STATUS</span><span className="v">{post.status}</span></div>
           </div>
