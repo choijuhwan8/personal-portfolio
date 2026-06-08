@@ -41,6 +41,12 @@ export function md2html(src: string): string {
     codeBlocks.push(`<pre style='position:relative;background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.2);padding:20px 16px 16px;font-family:JetBrains Mono,monospace;font-size:13px;overflow:auto;margin:1.2em 0;line-height:1.7'>${langLabel}<code class='language-${lang||"text"}'>${highlighted}</code></pre>`);
     return `%%CODE${codeBlocks.length - 1}%%`;
   });
+  const inlineCode: string[] = [];
+  src = src.replace(/`([^`]+)`/g, (_, inner) => {
+    const escaped = inner.replace(/[&<>"']/g, (c: string) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]||c));
+    inlineCode.push(`<code style='font-family:JetBrains Mono,monospace;font-size:0.82em;background:rgba(0,229,255,0.08);color:#00e5ff;padding:2px 6px;border:1px solid rgba(0,229,255,0.25)'>${escaped}</code>`);
+    return `%%IC${inlineCode.length - 1}%%`;
+  });
   src = src.replace(/^---$/gm, "%%HR%%");
   src = src.replace(/^>\s?(.+)$/gm, "%%BQ%%$1%%/BQ%%");
   let h = src.replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]||c));
@@ -54,7 +60,7 @@ export function md2html(src: string): string {
   h = h.replace(/((?:- .+\n?)+)/g,(block)=>{const items=block.trim().split("\n").filter((l:string)=>l.startsWith("- ")).map((l:string)=>`<li style='margin:0.5em 0;color:#d0d8dc'>${l.slice(2)}</li>`).join("");return `<ul style='padding-left:1.4em;margin:1em 0'>${items}</ul>`;});
   h = h.replace(/\*\*([^*]+)\*\*/g,"<strong style='color:#e6ecec'>$1</strong>");
   h = h.replace(/_([^_]+)_/g,"<em style='color:#00e5ff;font-style:italic'>$1</em>");
-  h = h.replace(/`([^`]+)`/g,"<code style='font-family:JetBrains Mono,monospace;font-size:0.82em;background:rgba(0,229,255,0.08);color:#00e5ff;padding:2px 6px;border:1px solid rgba(0,229,255,0.25)'>$1</code>");
+  h = h.replace(/%%IC(\d+)%%/g, (_, i) => inlineCode[+i]);
   h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g,"<a href='$2' style='color:#00e5ff;text-decoration:underline;text-underline-offset:4px'>$1</a>");
   const P="margin-bottom:1.1em;font-family:Newsreader,serif;font-size:16px;line-height:1.7;color:#d0d8dc";
   h = h.replace(/\n\n+/g,`</p><p style='${P}'>`);
