@@ -24,7 +24,7 @@ async function resolveImgRefs(body: string): Promise<string> {
   return body;
 }
 
-function md2html(src: string): string {
+export function md2html(src: string): string {
   const codeBlocks: string[] = [];
   const imgBlocks: string[] = [];
   src = src.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {

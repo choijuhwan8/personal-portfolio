@@ -4,6 +4,7 @@ import { db, storage } from "@/lib/firebase";
 import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Link from "next/link";
+import { md2html } from "@/components/PostBody";
 
 const PASS = "letmein";
 
@@ -328,7 +329,7 @@ console.log(hello);
             <div style={{ border: "1px solid rgba(255,255,255,0.1)", padding: 16, background: "#0d0e10", minHeight: 200, fontFamily: "Newsreader, serif", color: "#c0c8cc", fontSize: 14, lineHeight: 1.6 }}>
               {cur.title && <div style={{ fontFamily: "Space Grotesk, monospace", fontSize: 22, color: "#e6ecec", marginBottom: 8, fontWeight: 700 }}>{cur.title}</div>}
               {cur.dek && <p style={{ color: "#5e6770", fontStyle: "italic", marginBottom: 12 }}>{cur.dek}</p>}
-              <div style={{ fontSize: 13 }} dangerouslySetInnerHTML={{ __html: simplePreview(cur.body) }} />
+              <div style={{ fontSize: 13 }} dangerouslySetInnerHTML={{ __html: md2html(cur.body) }} />
             </div>
           )}
           {cur && (
@@ -347,47 +348,3 @@ console.log(hello);
   );
 }
 
-function simplePreview(src: string): string {
-  const codeBlocks: string[] = [];
-  const imageBlocks: string[] = [];
-  src = src.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
-    imageBlocks.push(`<img src='${url}' alt='${alt}' style='max-width:100%;border:1px solid rgba(255,255,255,0.1);margin:8px 0;display:block'/>`);
-    return `%%IMG${imageBlocks.length - 1}%%`;
-  });
-  src = src.replace(/```([\s\S]*?)```/g, (_, code) => {
-    const escaped = code.trim().replace(/[&<>"']/g, (c: string) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
-    codeBlocks.push(`<pre style='background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.25);padding:10px;font-size:11px;overflow:auto;margin:8px 0'><code>${escaped}</code></pre>`);
-    return `%%CODE${codeBlocks.length - 1}%%`;
-  });
-  src = src.replace(/^---$/gm, "%%HR%%");
-  src = src.replace(/^>\s?(.+)$/gm, "%%BQ%%$1%%/BQ%%");
-  let h = src.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
-  h = h.replace(/%%CODE(\d+)%%/g, (_, i) => codeBlocks[+i]);
-  h = h.replace(/%%IMG(\d+)%%/g, (_, i) => imageBlocks[+i]);
-  h = h.replace(/%%HR%%/g, "<hr style='border:0;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0'/>");
-  h = h.replace(/^####\s+(.+)$/gm, "<h4 style='font-size:10px;letter-spacing:0.2em;color:#5e6770;text-transform:uppercase;margin-top:10px'>$1</h4>");
-  h = h.replace(/^###\s+(.+)$/gm, "<h3 style='font-size:11px;letter-spacing:0.2em;color:#00e5ff;text-transform:uppercase;margin-top:14px'>$1</h3>");
-  h = h.replace(/^##\s+(.+)$/gm, "<h2 style='font-family:Space Grotesk,monospace;font-size:16px;color:#e6ecec;margin-top:14px'>$1</h2>");
-  h = h.replace(/^#\s+(.+)$/gm, "<h1 style='font-family:Space Grotesk,monospace;font-size:22px;color:#e6ecec;margin-bottom:8px'>$1</h1>");
-  h = h.replace(/%%BQ%%(.+?)%%\/BQ%%/g, "<blockquote style='border-left:3px solid #00e5ff;padding:8px 14px;color:#e6ecec;font-style:italic;background:rgba(0,229,255,0.04);margin:8px 0'>$1</blockquote>");
-  h = h.replace(/((?:^\|.+\|\n?)+)/gm, (block) => {
-    const rows = block.trim().split("\n").filter((l: string) => l.trim() && !/^\|[\s\-|]+\|$/.test(l.trim()));
-    if (rows.length === 0) return block;
-    const parseRow = (l: string) => l.trim().replace(/^\||\|$/g, "").split("|").map((c: string) => c.trim());
-    const [head, ...body] = rows;
-    const ths = parseRow(head).map((c: string) => `<th style='background:rgba(0,229,255,0.08);color:#00e5ff;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;padding:6px 10px;border:1px solid rgba(0,229,255,0.25);text-align:left'>${c}</th>`).join("");
-    const trs = body.map((r: string) => `<tr>${parseRow(r).map((c: string) => `<td style='padding:6px 10px;border:1px solid rgba(255,255,255,0.1);color:#c8d0d4;font-size:12px'>${c}</td>`).join("")}</tr>`).join("");
-    return `<table style='width:100%;border-collapse:collapse;margin:8px 0'><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
-  });
-  h = h.replace(/((?:- .+\n?)+)/g, (block) => {
-    const items = block.trim().split("\n").filter((l: string) => l.startsWith("- ")).map((l: string) => `<li style='margin:3px 0'>${l.slice(2)}</li>`).join("");
-    return "<ul style='padding-left:1.2em;margin:8px 0'>" + items + "</ul>";
-  });
-  h = h.replace(/\*\*([^*]+)\*\*/g, "<strong style='color:#e6ecec'>$1</strong>");
-  h = h.replace(/_([^_]+)_/g, "<em style='color:#00e5ff'>$1</em>");
-  h = h.replace(/`([^`]+)`/g, "<code style='background:rgba(0,229,255,0.08);color:#00e5ff;padding:1px 4px;font-size:11px'>$1</code>");
-  h = h.replace(/\n\n+/g, "</p><p style='margin-bottom:10px'>");
-  h = h.replace(/\n/g, "<br/>");
-  h = h.replace(/(<br\/>)+(<\/p>)/g, "$2");
-  return "<p style='margin-bottom:10px'>" + h + "</p>";
-}
