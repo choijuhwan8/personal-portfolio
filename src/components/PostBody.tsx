@@ -2,6 +2,13 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import Prism from "prismjs";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-solidity";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-json";
 
 async function resolveImgRefs(body: string): Promise<string> {
   const refs = [...body.matchAll(/!\[([^\]]*)\]\(imgref::([^):]+)::(\d+)\)/g)];
@@ -24,9 +31,14 @@ function md2html(src: string): string {
     imgBlocks.push(`<figure style='margin:1.6em 0;text-align:center'><img src='${url}' alt='${alt}' style='max-width:100%;border:1px solid rgba(0,229,255,0.2)'/></figure>`);
     return `%%IMG${imgBlocks.length - 1}%%`;
   });
-  src = src.replace(/```([\s\S]*?)```/g, (_, code) => {
-    const escaped = code.trim().replace(/[&<>"']/g, (c: string) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]||c));
-    codeBlocks.push(`<pre style='background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.25);padding:14px;font-family:JetBrains Mono,monospace;font-size:13px;overflow:auto;margin:1.2em 0;line-height:1.6'><code>${escaped}</code></pre>`);
+  src = src.replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const trimmed = code.trim();
+    const grammar = lang && Prism.languages[lang];
+    const highlighted = grammar
+      ? Prism.highlight(trimmed, grammar, lang)
+      : trimmed.replace(/[&<>"']/g, (c: string) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]||c));
+    const langLabel = lang ? `<span style='position:absolute;top:8px;right:12px;font-size:9px;letter-spacing:0.18em;color:#5e6770;text-transform:uppercase'>${lang}</span>` : "";
+    codeBlocks.push(`<pre style='position:relative;background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.2);padding:20px 16px 16px;font-family:JetBrains Mono,monospace;font-size:13px;overflow:auto;margin:1.2em 0;line-height:1.7'>${langLabel}<code class='language-${lang||"text"}'>${highlighted}</code></pre>`);
     return `%%CODE${codeBlocks.length - 1}%%`;
   });
   src = src.replace(/^---$/gm, "%%HR%%");
