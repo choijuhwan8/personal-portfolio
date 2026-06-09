@@ -117,7 +117,9 @@
   display: grid;
   grid-template-columns: 240px 1fr;
   min-height: 100%;
+  min-width: 0;
 }
+.v3-grid > * { min-width: 0; }
 
 /* === sidebar nav (file-tree style) === */
 .v3-side {

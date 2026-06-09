@@ -8,6 +8,7 @@ import Clock from "@/components/Clock";
 import { PORTFOLIO_DATA as D } from "@/lib/data";
 import NewsSection from "@/components/NewsSection";
 import NewsFeed from "@/components/NewsFeed";
+import BuildingSlider from "@/components/BuildingSlider";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, increment } from "firebase/firestore";
 
@@ -182,28 +183,8 @@ export default function Home() {
           <header id="building" className="v3-sech">
             <span className="id">/ 02</span>
             <h2>building<span className="accent">.</span></h2>
-            <span className="meta">{D.projects.length} PROJECTS</span>
           </header>
-          <section className="v3-projects">
-            {D.projects.map((p) => (
-              <article key={p.name} className="v3-prow">
-                <div className="left">
-                  <div className="name">{p.name}</div>
-                  <div className="v">{p.version}</div>
-                  <a className="url" href={`#${p.name}`}>↳ {p.url}</a>
-                </div>
-                <div className="mid">
-                  <p className="sum">{p.summary}</p>
-                  <div className="stack">{p.stack.map((s) => <span key={s}>{s}</span>)}</div>
-                </div>
-                <div className="right">
-                  <div><span className="status" data-s={p.status}>{p.status}</span></div>
-                  <span className="mv">{p.metric.value}</span>
-                  <div className="ml">{p.metric.label}</div>
-                </div>
-              </article>
-            ))}
-          </section>
+          <BuildingSlider />
 
           <header id="about" className="v3-sech">
             <span className="id">/ 03·04</span>

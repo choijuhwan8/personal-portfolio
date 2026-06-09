@@ -8,9 +8,11 @@ import { md2html } from "@/components/PostBody";
 
 const PASS = "letmein";
 
+interface BuildLink { label: string; url: string; }
 interface Draft {
   id: string; title: string; dek: string; tag: string;
   date: string; status: string; slug: string; body: string; updated: number;
+  links?: BuildLink[];
 }
 
 function slugify(title: string, existingSlugs: string[] = [], currentId = ""): string {
@@ -23,28 +25,38 @@ function slugify(title: string, existingSlugs: string[] = [], currentId = ""): s
 }
 
 function newDraft(): Draft {
-  return { id: "d-" + Date.now(), title: "", dek: "", tag: "RESEARCH", date: new Date().toISOString().slice(0, 10), status: "draft", slug: "untitled", body: "", updated: Date.now() };
+  return { id: "d-" + Date.now(), title: "", dek: "", tag: "RESEARCH", date: new Date().toISOString().slice(0, 10), status: "draft", slug: "untitled", body: "", updated: Date.now(), links: [] };
 }
 
 const STORE_KEY = "juhwan_drafts_v1";
+const BUILD_STORE_KEY = "juhwan_builds_v1";
 function loadDrafts(): Draft[] {
   try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); } catch { return []; }
 }
 function saveDrafts(arr: Draft[]) { localStorage.setItem(STORE_KEY, JSON.stringify(arr)); }
+function loadBuilds(): Draft[] {
+  try { return JSON.parse(localStorage.getItem(BUILD_STORE_KEY) || "[]"); } catch { return []; }
+}
+function saveBuilds(arr: Draft[]) { localStorage.setItem(BUILD_STORE_KEY, JSON.stringify(arr)); }
 
 export default function AdminPage() {
   const [unlocked, setUnlocked] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mode, setMode] = useState<"writing" | "building">("writing");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [builds, setBuilds] = useState<Draft[]>([]);
   const [currentId, setCurrentId] = useState("");
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving">("saved");
   const [publishState, setPublishState] = useState("");
   const [fetchState, setFetchState] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const cur = drafts.find((d) => d.id === currentId);
+  const items = mode === "writing" ? drafts : builds;
+  const setItems = mode === "writing" ? setDrafts : setBuilds;
+  const saveItems = mode === "writing" ? saveDrafts : saveBuilds;
+  const cur = items.find((d) => d.id === currentId);
 
   useEffect(() => {
     if (sessionStorage.getItem("admin_ok") === "1") setUnlocked(true);
@@ -54,65 +66,20 @@ export default function AdminPage() {
     if (!unlocked) return;
     let d = loadDrafts();
     if (!d.length) {
-      d = [{
-        ...newDraft(),
-        title: "Welcome to the editor",
-        dek: "A starter draft you can edit, save, or delete.",
-        body: `# Welcome
-
-This is the **admin editor**. It saves every keystroke to your browser's local storage.
-
-## What works
-
-- Typing
-- Markdown shortcuts in the toolbar
-- A live preview on the right
-- \`Cmd/Ctrl + S\` to save manually
-
-## What's wired up
-
-The \`PUBLISH →\` button saves to **Firebase Firestore**. Your post will appear on the site immediately.
-
-## Markdown reference
-
-**Bold** — \`**text**\`
-_Italic_ — \`_text_\`
-\`Inline code\` — \`\\\`text\\\`\`
-
-### Headings
-
-Use \`#\`, \`##\`, \`###\` for H1, H2, H3.
-
-### Blockquote
-
-> This is a blockquote. Use \`> text\` to create one.
-
-### List
-
-- Item one
-- Item two
-- Item three
-
-### Link
-
-[Link text](https://example.com)
-
-### Code block
-
-\`\`\`
-const hello = "world";
-console.log(hello);
-\`\`\`
-
----
-
-> Tip: type _admin_ anywhere on the site to come back here.`,
-      }];
+      d = [{ ...newDraft(), title: "Welcome to the editor", dek: "A starter draft you can edit, save, or delete.", body: "# Welcome\n\nStart writing here." }];
       saveDrafts(d);
     }
     setDrafts(d);
+    const b = loadBuilds();
+    setBuilds(b);
     setCurrentId(d[0].id);
   }, [unlocked]);
+
+  useEffect(() => {
+    const list = mode === "writing" ? drafts : builds;
+    if (list.length) setCurrentId(list[0].id);
+    else setCurrentId("");
+  }, [mode]);
 
   function unlock() {
     if (pass === PASS) { sessionStorage.setItem("admin_ok", "1"); setUnlocked(true); }
@@ -120,7 +87,7 @@ console.log(hello);
   }
 
   function update(field: keyof Draft, value: string) {
-    setDrafts((prev) => {
+    setItems((prev) => {
       const next = prev.map((d) => {
         if (d.id !== currentId) return d;
         const updated: Draft = { ...d, [field]: value, updated: Date.now() };
@@ -129,26 +96,29 @@ console.log(hello);
       });
       setSaveState("dirty");
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => { saveDrafts(next); setSaveState("saved"); }, 600);
+      saveTimer.current = setTimeout(() => { saveItems(next); setSaveState("saved"); }, 600);
       return next;
     });
   }
 
   function persist() {
-    saveDrafts(drafts);
+    saveItems(items);
     setSaveState("saved");
   }
 
   async function publish() {
     if (!cur) return;
     setPublishState("PUBLISHING…");
-    const updated = drafts.map((d) => d.id === currentId ? { ...d, status: "published" } : d);
-    setDrafts(updated);
-    saveDrafts(updated);
+    const updated = items.map((d) => d.id === currentId ? { ...d, status: "published" } : d);
+    setItems(updated);
+    saveItems(updated);
+    const collection_ = mode === "writing" ? "posts" : "builds";
     try {
-      await setDoc(doc(db, "posts", cur.slug), {
+      await setDoc(doc(db, collection_, cur.slug), {
         id: cur.slug, title: cur.title, dek: cur.dek, tag: cur.tag,
-        date: cur.date, status: "published", slug: cur.slug, body: cur.body, updatedAt: Date.now(),
+        date: cur.date, status: "published", slug: cur.slug, body: cur.body,
+        links: (mode === "building" ? (cur.links || []) : []),
+        updatedAt: Date.now(),
       });
       setPublishState("PUBLISHED ✓");
     } catch (e: any) {
@@ -159,17 +129,18 @@ console.log(hello);
 
   async function fetchFromFirebase() {
     setFetchState("LOADING…");
+    const collection_ = mode === "writing" ? "posts" : "builds";
     try {
-      const snap = await getDocs(collection(db, "posts"));
-      setDrafts((prev) => {
+      const snap = await getDocs(collection(db, collection_));
+      setItems((prev) => {
         const next = [...prev];
         snap.forEach((docSnap) => {
           const p = docSnap.data();
           if (!next.find((d) => d.slug === p.slug)) {
-            next.unshift({ id: "d-" + p.slug, title: p.title || "", dek: p.dek || "", tag: p.tag || "RESEARCH", date: p.date || "", status: p.status || "published", slug: p.slug || "", body: p.body || "", updated: p.updatedAt || Date.now() });
+            next.unshift({ id: "d-" + p.slug, title: p.title || "", dek: p.dek || "", tag: p.tag || "", date: p.date || "", status: p.status || "published", slug: p.slug || "", body: p.body || "", links: p.links || [], updated: p.updatedAt || Date.now() });
           }
         });
-        saveDrafts(next);
+        saveItems(next);
         return next;
       });
       setFetchState("LOADED ✓");
@@ -181,16 +152,17 @@ console.log(hello);
 
   async function deleteDraft() {
     if (!confirm("Delete this draft?")) return;
-    const next = drafts.filter((d) => d.id !== currentId);
-    const final = next.length ? next : [newDraft()];
-    setDrafts(final);
-    saveDrafts(final);
-    setCurrentId(final[0].id);
+    const next = items.filter((d) => d.id !== currentId);
+    const final = next.length ? next : [];
+    setItems(final);
+    saveItems(final);
+    setCurrentId(final[0]?.id || "");
   }
 
   async function deleteFromFirebase() {
     if (!cur || !confirm(`Delete "${cur.title || cur.slug}" from Firebase?`)) return;
-    await deleteDoc(doc(db, "posts", cur.slug));
+    const collection_ = mode === "writing" ? "posts" : "builds";
+    await deleteDoc(doc(db, collection_, cur.slug));
     deleteDraft();
   }
 
@@ -262,19 +234,27 @@ console.log(hello);
       <div style={{ display: "grid", gridTemplateColumns: `${sidebarOpen ? "240px" : "40px"} 1fr 320px`, flex: 1, overflow: "hidden" }}>
         <aside style={{ borderRight: "1px solid rgba(255,255,255,0.1)", background: "#14161a", overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {sidebarOpen && (
-            <div style={{ padding: "24px 16px", overflowY: "auto", flex: 1 }}>
-              <button onClick={() => { const d = newDraft(); setDrafts((p) => { const n = [d, ...p]; saveDrafts(n); return n; }); setCurrentId(d.id); }} style={{ width: "100%", border: "1px solid #00e5ff", color: "#00e5ff", padding: "10px 12px", fontSize: 11, letterSpacing: "0.16em", marginBottom: 8, cursor: "pointer", background: "none", fontFamily: "inherit" }}>+ NEW DRAFT</button>
-              <button onClick={fetchFromFirebase} style={{ width: "100%", border: "1px solid #aaff00", color: "#aaff00", padding: "10px 12px", fontSize: 11, letterSpacing: "0.16em", marginBottom: 18, cursor: "pointer", background: "none", fontFamily: "inherit" }}>{fetchState || "↓ LOAD FROM FIREBASE"}</button>
-              <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#5e6770", marginBottom: 10 }}>/ DRAFTS</div>
-              {drafts.map((d) => (
-                <div key={d.id} onClick={() => setCurrentId(d.id)} style={{ padding: "10px 12px", borderTop: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderLeft: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderRight: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderBottom: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", background: d.id === currentId ? "rgba(0,229,255,0.05)" : "none", marginBottom: 2 }}>
-                  <div style={{ fontFamily: "Space Grotesk, monospace", fontSize: 14, fontWeight: 600, lineHeight: 1.2, marginBottom: 6 }}>{d.title || "(untitled)"}</div>
-                  <div style={{ fontSize: 10, letterSpacing: "0.14em", color: "#5e6770", display: "flex", justifyContent: "space-between" }}>
-                    <span>{d.tag} · {d.date}</span>
-                    <span style={{ color: d.status === "published" ? "#aaff00" : "#5e6770" }}>{d.status}</span>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                {(["writing", "building"] as const).map((m) => (
+                  <button key={m} onClick={() => setMode(m)} style={{ padding: "10px", fontSize: 10, letterSpacing: "0.16em", background: mode === m ? "rgba(0,229,255,0.08)" : "none", border: 0, borderBottom: mode === m ? "2px solid #00e5ff" : "2px solid transparent", color: mode === m ? "#00e5ff" : "#5e6770", cursor: "pointer", fontFamily: "inherit", textTransform: "uppercase" }}>{m}</button>
+                ))}
+              </div>
+              <div style={{ padding: "16px", overflowY: "auto", flex: 1 }}>
+                <button onClick={() => { const d = newDraft(); setItems((p) => { const n = [d, ...p]; saveItems(n); return n; }); setCurrentId(d.id); }} style={{ width: "100%", border: "1px solid #00e5ff", color: "#00e5ff", padding: "10px 12px", fontSize: 11, letterSpacing: "0.16em", marginBottom: 8, cursor: "pointer", background: "none", fontFamily: "inherit" }}>+ NEW {mode === "writing" ? "DRAFT" : "BUILD"}</button>
+                <button onClick={fetchFromFirebase} style={{ width: "100%", border: "1px solid #aaff00", color: "#aaff00", padding: "10px 12px", fontSize: 11, letterSpacing: "0.16em", marginBottom: 18, cursor: "pointer", background: "none", fontFamily: "inherit" }}>{fetchState || "↓ LOAD FROM FIREBASE"}</button>
+                <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#5e6770", marginBottom: 10 }}>/ {mode === "writing" ? "DRAFTS" : "BUILDS"}</div>
+                {items.map((d) => (
+                  <div key={d.id} onClick={() => setCurrentId(d.id)} style={{ padding: "10px 12px", borderTop: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderLeft: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderRight: `1px solid ${d.id === currentId ? "#00e5ff" : "transparent"}`, borderBottom: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", background: d.id === currentId ? "rgba(0,229,255,0.05)" : "none", marginBottom: 2 }}>
+                    <div style={{ fontFamily: "Space Grotesk, monospace", fontSize: 14, fontWeight: 600, lineHeight: 1.2, marginBottom: 6 }}>{d.title || "(untitled)"}</div>
+                    <div style={{ fontSize: 10, letterSpacing: "0.14em", color: "#5e6770", display: "flex", justifyContent: "space-between" }}>
+                      <span>{d.date}</span>
+                      <span style={{ color: d.status === "published" ? "#aaff00" : "#5e6770" }}>{d.status}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+                {items.length === 0 && <div style={{ fontSize: 11, color: "#5e6770", padding: "12px 0" }}>// no {mode === "writing" ? "drafts" : "builds"} yet</div>}
+              </div>
             </div>
           )}
         </aside>
@@ -284,8 +264,31 @@ console.log(hello);
             <>
               <input value={cur.title} onChange={(e) => update("title", e.target.value)} placeholder="A title that says something." style={{ width: "100%", fontFamily: "Space Grotesk, monospace", fontSize: 48, fontWeight: 700, letterSpacing: "-0.03em", background: "none", border: 0, color: "#e6ecec", marginBottom: 16, lineHeight: 1 }} />
               <input value={cur.dek} onChange={(e) => update("dek", e.target.value)} placeholder="One-sentence dek." style={{ width: "100%", fontFamily: "Newsreader, serif", fontSize: 20, background: "none", border: 0, color: "#c0c8cc", marginBottom: 20 }} />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: "1px solid rgba(255,255,255,0.1)", borderBottom: "1px solid rgba(255,255,255,0.1)", marginBottom: 24 }}>
-                {(["tag", "date", "status"] as (keyof Draft)[]).map((f) => (
+              {mode === "building" && (
+                <div style={{ marginBottom: 20, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 16 }}>
+                  <div style={{ fontSize: 9, letterSpacing: "0.2em", color: "#5e6770", marginBottom: 8 }}>/ LINKS</div>
+                  {(cur.links || []).map((lk, i) => (
+                    <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                      <input
+                        value={lk.label}
+                        placeholder="Label (e.g. GitHub)"
+                        onChange={(e) => { const l = [...(cur.links||[])]; l[i] = { ...l[i], label: e.target.value }; update("links", l); }}
+                        style={{ flex: "0 0 120px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#e6ecec", padding: "6px 10px", fontSize: 12, fontFamily: "inherit" }}
+                      />
+                      <input
+                        value={lk.url}
+                        placeholder="https://..."
+                        onChange={(e) => { const l = [...(cur.links||[])]; l[i] = { ...l[i], url: e.target.value }; update("links", l); }}
+                        style={{ flex: 1, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#e6ecec", padding: "6px 10px", fontSize: 12, fontFamily: "inherit" }}
+                      />
+                      <button onClick={() => { const l = (cur.links||[]).filter((_,j) => j !== i); update("links", l); }} style={{ border: "1px solid rgba(255,77,210,0.3)", color: "#ff4dd2", background: "none", padding: "6px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                    </div>
+                  ))}
+                  <button onClick={() => update("links", [...(cur.links||[]), { label: "", url: "" }])} style={{ border: "1px solid rgba(0,229,255,0.3)", color: "#00e5ff", background: "none", padding: "6px 12px", fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.14em" }}>+ ADD LINK</button>
+                </div>
+              )}
+              <div style={{ display: "grid", gridTemplateColumns: mode === "writing" ? "1fr 1fr 1fr" : "1fr 1fr", borderTop: "1px solid rgba(255,255,255,0.1)", borderBottom: "1px solid rgba(255,255,255,0.1)", marginBottom: 24 }}>
+                {(mode === "writing" ? (["tag", "date", "status"] as (keyof Draft)[]) : (["date", "status"] as (keyof Draft)[])).map((f) => (
                   <div key={f} style={{ padding: "10px 12px", borderRight: "1px solid rgba(255,255,255,0.1)" }}>
                     <span style={{ display: "block", fontSize: 9, letterSpacing: "0.2em", color: "#5e6770", marginBottom: 4 }}>/ {f.toUpperCase()}</span>
                     {f === "tag" ? (

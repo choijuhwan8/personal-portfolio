@@ -1,3 +1,109 @@
+/* ── building carousel (swiper) ── */
+.bc-root { padding: 16px 32px 36px; min-width: 0; }
+.bc-root.bc-empty { color: var(--dim); font-size: 12px; letter-spacing: 0.16em; }
+
+.bc-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.bc-swiper { width: 100% !important; padding-bottom: 44px !important; margin: 0 !important; }
+
+.bc-slide {
+  border-radius: 14px;
+  background: rgba(13, 15, 19, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden;
+  height: auto !important;
+  min-height: 620px;
+}
+
+.bc-slide-link { display: flex; flex-direction: column; flex: 1; text-decoration: none; color: inherit; }
+.bc-card-img { height: 480px; min-height: 480px; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #0a0c0f; }
+.bc-card-img img { width: 100%; height: 100%; object-fit: contain; display: block; transition: transform 0.4s ease; }
+.bc-slide:hover .bc-card-img img { transform: scale(1.04); }
+
+.bc-card-empty {
+  height: 180px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(0,229,255,0.03), rgba(255,77,210,0.03));
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.bc-card-empty span { font-size: 10px; letter-spacing: 0.2em; color: #3a4048; }
+
+.bc-card-body { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 5px; }
+.bc-card-meta { display: flex; justify-content: space-between; align-items: center; }
+.bc-card-date { font-size: 10px; letter-spacing: 0.18em; color: #00e5ff; }
+.bc-card-idx { font-size: 10px; letter-spacing: 0.14em; color: #3a4048; }
+.bc-card-title { font-family: "Space Grotesk", sans-serif; font-size: 14px; font-weight: 700; color: #e6ecec; line-height: 1.2; }
+.bc-card-dek { font-size: 11px; color: #5e6770; line-height: 1.5; }
+
+/* nav arrows */
+.bc-swiper .swiper-button-prev,
+.bc-swiper .swiper-button-next { color: #00e5ff; transition: opacity 0.2s; }
+.bc-swiper .swiper-button-prev::after,
+.bc-swiper .swiper-button-next::after { font-size: 16px; font-weight: 700; }
+.bc-hide-prev .swiper-button-prev { opacity: 0; pointer-events: none; }
+.bc-hide-next .swiper-button-next { opacity: 0; pointer-events: none; }
+
+/* pagination */
+.bc-swiper .swiper-pagination-bullet { background: rgba(255,255,255,0.2); opacity: 1; }
+.bc-swiper .swiper-pagination-bullet-active { background: #00e5ff; width: 16px; border-radius: 3px; transition: width 0.2s; }
+
+/* see all box — matches .v3-see-all writing button */
+.bc-see-all-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 18px 22px;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  text-decoration: none;
+  transition: background 120ms ease;
+  /* nudge up to sit above the swiper pagination */
+  margin-bottom: 44px;
+}
+.bc-see-all-box:hover { background: rgba(0,229,255,0.08); }
+.bc-see-all-box:hover .bc-see-all-box-arr { transform: translate(4px, -4px); }
+.bc-see-all-box-label {
+  font-family: "Space Grotesk", "JetBrains Mono", sans-serif;
+  font-size: clamp(13px, 1.4vw, 20px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.bc-see-all-box-arr {
+  font-size: clamp(13px, 1.4vw, 20px);
+  font-weight: 600;
+  display: inline-block;
+  transition: transform 160ms ease;
+}
+.bc-see-all-box-cnt {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--dim);
+  font-weight: 400;
+}
+
+@media (max-width: 700px) {
+  .bc-row { grid-template-columns: 1fr; }
+  .bc-see-all-box { margin-bottom: 0; }
+}
+@media (max-width: 600px) {
+  .bc-root { padding: 8px 16px 24px; }
+  .bc-swiper { width: 100%; }
+  .bc-card-img, .bc-card-empty { height: 44vw; }
+}
+
 /* Prism syntax highlighting — dark theme */
 .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #5e6770; font-style: italic; }
 .token.punctuation { color: #8899aa; }
