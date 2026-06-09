@@ -86,6 +86,16 @@ export default function AdminPage() {
     else { setErr("// wrong passphrase"); setPass(""); }
   }
 
+  function updateLinks(links: BuildLink[]) {
+    setItems((prev) => {
+      const next = prev.map((d) => d.id !== currentId ? d : { ...d, links, updated: Date.now() });
+      setSaveState("dirty");
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => { saveItems(next); setSaveState("saved"); }, 600);
+      return next;
+    });
+  }
+
   function update(field: keyof Draft, value: string) {
     setItems((prev) => {
       const next = prev.map((d) => {
@@ -272,19 +282,19 @@ export default function AdminPage() {
                       <input
                         value={lk.label}
                         placeholder="Label (e.g. GitHub)"
-                        onChange={(e) => { const l = [...(cur.links||[])]; l[i] = { ...l[i], label: e.target.value }; update("links", l); }}
+                        onChange={(e) => { const l = [...(cur.links||[])]; l[i] = { ...l[i], label: e.target.value }; updateLinks(l); }}
                         style={{ flex: "0 0 120px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#e6ecec", padding: "6px 10px", fontSize: 12, fontFamily: "inherit" }}
                       />
                       <input
                         value={lk.url}
                         placeholder="https://..."
-                        onChange={(e) => { const l = [...(cur.links||[])]; l[i] = { ...l[i], url: e.target.value }; update("links", l); }}
+                        onChange={(e) => { const l = [...(cur.links||[])]; l[i] = { ...l[i], url: e.target.value }; updateLinks(l); }}
                         style={{ flex: 1, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#e6ecec", padding: "6px 10px", fontSize: 12, fontFamily: "inherit" }}
                       />
-                      <button onClick={() => { const l = (cur.links||[]).filter((_,j) => j !== i); update("links", l); }} style={{ border: "1px solid rgba(255,77,210,0.3)", color: "#ff4dd2", background: "none", padding: "6px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                      <button onClick={() => { const l = (cur.links||[]).filter((_,j) => j !== i); updateLinks(l); }} style={{ border: "1px solid rgba(255,77,210,0.3)", color: "#ff4dd2", background: "none", padding: "6px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
                     </div>
                   ))}
-                  <button onClick={() => update("links", [...(cur.links||[]), { label: "", url: "" }])} style={{ border: "1px solid rgba(0,229,255,0.3)", color: "#00e5ff", background: "none", padding: "6px 12px", fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.14em" }}>+ ADD LINK</button>
+                  <button onClick={() => updateLinks([...(cur.links||[]), { label: "", url: "" }])} style={{ border: "1px solid rgba(0,229,255,0.3)", color: "#00e5ff", background: "none", padding: "6px 12px", fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.14em" }}>+ ADD LINK</button>
                 </div>
               )}
               <div style={{ display: "grid", gridTemplateColumns: mode === "writing" ? "1fr 1fr 1fr" : "1fr 1fr", borderTop: "1px solid rgba(255,255,255,0.1)", borderBottom: "1px solid rgba(255,255,255,0.1)", marginBottom: 24 }}>
