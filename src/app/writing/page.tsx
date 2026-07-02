@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getPosts, Post } from "@/lib/posts";
+import { getPosts, byDateThenTime, Post } from "@/lib/posts";
 import Clock from "@/components/Clock";
 
 const TAGS = ["ALL", "STUDY", "OPINION"];
@@ -19,7 +19,7 @@ export default function WritingPage() {
   const filtered = posts
     .filter((p) => tag === "ALL" || p.tag === tag || (tag === "OPINION" && p.tag === "RESEARCH"))
     .filter((p) => !search || (p.title + " " + p.dek).toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    .sort(byDateThenTime);
 
   const byYear: Record<string, Post[]> = {};
   filtered.forEach((p) => {
