@@ -1,5 +1,5 @@
 import { db } from "./firebase";
-import { collection, getDocs, doc, getDoc, orderBy, query, limit } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, query, where } from "firebase/firestore";
 
 export interface NewsItem {
   id: string;
@@ -12,6 +12,7 @@ export interface NewsItem {
   category: string;
   significance: number;
   imageUrl: string;
+  beat?: string;
 }
 
 export async function getLatestCoverImage(): Promise<string> {
@@ -24,11 +25,15 @@ export async function getLatestCoverImage(): Promise<string> {
   }
 }
 
+/** Only items written by the markets digest (beat: "markets") are shown. */
 export async function getNews(count = 6): Promise<NewsItem[]> {
   try {
-    const q = query(collection(db, "news"), orderBy("date", "desc"), limit(count));
+    const q = query(collection(db, "news"), where("beat", "==", "markets"));
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as NewsItem));
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }) as NewsItem)
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.significance || 0) - (a.significance || 0))
+      .slice(0, count);
   } catch {
     return [];
   }

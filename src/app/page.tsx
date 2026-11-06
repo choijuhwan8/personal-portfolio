@@ -1,242 +1,329 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getPosts, Post } from "@/lib/posts";
-import FuturisticGrid from "@/components/FuturisticGrid";
-import Ticker from "@/components/Ticker";
-import Clock from "@/components/Clock";
-import { PORTFOLIO_DATA as D } from "@/lib/data";
-import NewsSection from "@/components/NewsSection";
-import NewsFeed from "@/components/NewsFeed";
-import BuildingSlider from "@/components/BuildingSlider";
+import { doc, getDoc, increment, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, increment } from "firebase/firestore";
+import { getPosts, type Post } from "@/lib/posts";
+import { getBuilds, extractFirstImage, type Build } from "@/lib/builds";
+import { getNews, type NewsItem } from "@/lib/news";
+import { PORTFOLIO_DATA as D } from "@/lib/data";
+import SiteNav from "@/components/SiteNav";
+import SiteFooter from "@/components/SiteFooter";
+import HeroChart from "@/components/HeroChart";
+import { CountUp, Reveal } from "@/components/Reveal";
 
-const SECTIONS = [
-  { id: "hero", label: "00 — index" },
-  { id: "writing", label: "01 — writing" },
-  { id: "building", label: "02 — building" },
-  { id: "about", label: "03 — about" },
-  { id: "resume", label: "04 — resume" },
-  { id: "contact", label: "05 — contact" },
-];
+function useVisitors() {
+  const [visitors, setVisitors] = useState({ today: 0, total: 0 });
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `visited_${today}`;
+    let counted = false;
+    try {
+      counted = !!sessionStorage.getItem(key);
+      if (!counted) sessionStorage.setItem(key, "1");
+    } catch {}
+    const totalRef = doc(db, "meta", "visitors");
+    const todayRef = doc(db, "meta", `visitors_${today}`);
+    (async () => {
+      try {
+        if (!counted) {
+          await Promise.all([
+            setDoc(totalRef, { total: increment(1) }, { merge: true }),
+            setDoc(todayRef, { count: increment(1), date: today }, { merge: true }),
+          ]);
+        }
+        const [t, d] = await Promise.all([getDoc(totalRef), getDoc(todayRef)]);
+        setVisitors({ total: t.data()?.total ?? 0, today: d.data()?.count ?? 0 });
+      } catch {}
+    })();
+  }, []);
+  return visitors;
+}
+
+function SectionHead({ n, kicker, title }: { n: string; kicker: string; title: React.ReactNode }) {
+  return (
+    <Reveal className="sec-head">
+      <span className="kicker">
+        <span className="kicker-n">{n}</span>
+        {kicker}
+      </span>
+      <h2>{title}</h2>
+    </Reveal>
+  );
+}
 
 export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [activeId, setActiveId] = useState("hero");
-  const [visitors, setVisitors] = useState({ today: 0, total: 0 });
-
-  useEffect(() => { getPosts().then(setPosts); }, []);
-
-  useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const sessionKey = `visited_${today}`;
-    const alreadyCounted = sessionStorage.getItem(sessionKey);
-    const totalRef = doc(db, "meta", "visitors");
-    const todayRef = doc(db, "meta", `visitors_${today}`);
-    async function trackAndRead() {
-      if (!alreadyCounted) {
-        sessionStorage.setItem(sessionKey, "1");
-        await Promise.all([
-          setDoc(totalRef, { total: increment(1) }, { merge: true }),
-          setDoc(todayRef, { count: increment(1), date: today }, { merge: true }),
-        ]);
-      }
-      const [totalSnap, todaySnap] = await Promise.all([getDoc(totalRef), getDoc(todayRef)]);
-      setVisitors({
-        total: totalSnap.exists() ? (totalSnap.data().total ?? 0) : 0,
-        today: todaySnap.exists() ? (todaySnap.data().count ?? 0) : 0,
-      });
-    }
-    trackAndRead();
-  }, []);
+  const [builds, setBuilds] = useState<Build[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const visitors = useVisitors();
 
   useEffect(() => {
-    const handleScroll = () => {
-      for (let i = SECTIONS.length - 1; i >= 0; i--) {
-        const el = document.getElementById(SECTIONS[i].id);
-        if (el && el.getBoundingClientRect().top <= 80) {
-          setActiveId(SECTIONS[i].id);
-          return;
-        }
-      }
-      setActiveId("hero");
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    getPosts().then(setPosts).catch(() => {});
+    getBuilds().then(setBuilds).catch(() => {});
+    getNews(5).then(setNews).catch(() => {});
   }, []);
 
   return (
-    <div className="v3 pf-root" style={{ background: "var(--bg)", color: "var(--fg)" }}>
-      <FuturisticGrid color="#00e5ff" accent="#ff4dd2" density={60} />
+    <div className="site">
+      <SiteNav />
 
-      <header className="v3-doc-head">
-        <div>VISITORS · TODAY <b>{visitors.today}</b> · TOTAL <b>{visitors.total}</b></div>
-        <div className="center">/ HOME /</div>
-        <div className="right"><Clock /></div>
-      </header>
-
-      <div className="v3-writing-ticker">
-        <span className="lbl">/ LIVE FEED</span>
-        <div className="ticker-wrap"><Ticker /></div>
-      </div>
-
-      <div className="v3-grid">
-        <aside className="v3-side">
-          <div className="branding">CHOI<span className="dot">.</span>JUHWAN</div>
-          <div className="tag">CRYPTO · RESEARCHER · BUILDER</div>
-          <h5>/ INDEX</h5>
-          <ul>
-            {SECTIONS.map((s) => (
-              <li key={s.id} className={activeId === s.id ? "active" : ""}>
-                <a href={`#${s.id}`}>{s.label}</a>
-              </li>
-            ))}
-          </ul>
-          <h5>/ PAGES</h5>
-          <ul>
-            <li><Link href="/writing">writing</Link></li>
-            <li><Link href="/news">ai news</Link></li>
-          </ul>
-          <h5>/ ELSEWHERE</h5>
-          <ul>
-            {D.socials.slice(0, 4).map((s) => (
-              <li key={s.label}><a href={s.url}>{s.label.toLowerCase()}</a></li>
-            ))}
-          </ul>
-          {/* <div className="now-box">
-            <b>/ NOW</b>
-            {D.now.slice(0, 3).map((n, i) => <span key={i}>· {n}</span>)}
-          </div> */}
-        </aside>
-
-        <main>
-          <section id="hero" className="v3-hero">
-            <div>
-              <span className="stamp">00 / INDEX</span>
-              <h1>Choi<br /><span className="underline">Juhwan</span>,<br />online.</h1>
-              <p className="role">Independent researcher and builder. I write about restaking, intent architectures, and L2 economics. I ship small tools for onchain analysts. {D.location}.</p>
-              <div className="keylinks">
-                <a href="#writing">READ THE WRITING ↗</a>
-                <a href="#building">SEE WHAT'S SHIPPING ↗</a>
-                <a href="#contact">SAY HELLO ↗</a>
-              </div>
+      <main>
+        {/* ── Hero ─────────────────────────────────────────── */}
+        <section className="hero wrap">
+          <div className="hero-copy">
+            <span className="eyebrow rise" style={{ animationDelay: "60ms" }}>
+              <span className="live-dot" />
+              {D.availability}
+            </span>
+            <h1 className="rise" style={{ animationDelay: "140ms" }}>
+              Clear thinking
+              <br />
+              for <em>complex</em> markets.
+            </h1>
+            <p className="lede rise" style={{ animationDelay: "240ms" }}>
+              I'm Juhwan, an Information Systems student at SMU. I've worked in{" "}
+              <strong>equity capital markets</strong>, <strong>venture building</strong> and{" "}
+              <strong>technology</strong>, and I'm looking for client-facing roles in financial
+              services.
+            </p>
+            <div className="hero-cta rise" style={{ animationDelay: "340ms" }}>
+              <a href="#contact" className="btn">
+                Get in touch <span aria-hidden="true">→</span>
+              </a>
+              <a href="#experience" className="btn btn-ghost">
+                View experience
+              </a>
             </div>
-            <div>
-              <div className="spec">
-                <div className="spec-head"><span>// SPEC SHEET</span><span>v2026.05</span></div>
-                <div className="row"><dt>NAME</dt><dd>{D.name}</dd></div>
-                <div className="row"><dt>HANDLE</dt><dd>{D.handle}</dd></div>
-                <div className="row"><dt>ROLE</dt><dd>{D.role}</dd></div>
-                <div className="row"><dt>BASE</dt><dd>{D.location}</dd></div>
-                <div className="row"><dt>FOCUS</dt><dd>Blockchain · Cryptoeconomics · Onchain Data</dd></div>
-                {/* <div className="row"><dt>STATUS</dt><dd><b>● Open to research RFPs</b></dd></div> */}
-                {/* <div className="row"><dt>RATE</dt><dd>On request — usually fixed-scope</dd></div> */}
-              </div>
-              <NewsFeed />
-            </div>
-          </section>
-
-          <header id="writing" className="v3-sech">
-            <span className="id">/ 01</span>
-            <h2>writing<span className="accent">.</span></h2>
-            <span className="meta">{posts.length} POSTS · LONG-FORM · UPDATED WEEKLY</span>
-          </header>
-          <section className="v3-blog">
-            {posts.length === 0 && (
-              <div style={{ padding: "32px", color: "var(--dim)", fontSize: 12, letterSpacing: "0.16em" }}>NO POSTS YET.</div>
-            )}
-            {posts.slice(0, 4).map((p, i) => (
-              <Link key={p.slug} className="post" href={`/writing/${p.slug}`}>
-                <span className="idx">/{String(posts.length - i).padStart(3, "0")}</span>
-                <span className="date">{p.date}</span>
-                <div>
-                  <div className="ttl">{p.title}</div>
-                  <div className="dek">{p.dek && p.dek.length > 80 ? p.dek.slice(0, 80) + "…" : p.dek}</div>
-                </div>
-                <span className="tag">{p.tag === "RESEARCH" ? "OPINION" : p.tag}</span>
-                <span className="stat"></span>
-              </Link>
-            ))}
-          </section>
-          <div className="v3-see-all">
-            <Link href="/writing">
-              SEE ALL WRITING <span className="arr">↗</span>
-              <span className="cnt">{posts.length} POSTS · ARCHIVE</span>
-            </Link>
           </div>
 
-          {/* <header id="ainews" className="v3-sech">
-            <span className="id">/ 02</span>
-            <h2>daily ai news curation<span className="accent">.</span></h2>
-            <span className="meta">CURATED · UPDATED DAILY 8PM SGT</span>
-          </header>
-          <NewsSection />
-
-          <div className="v3-see-all">
-            <Link href="/news">
-              SEE ALL AI NEWS <span className="arr">↗</span>
-              <span className="cnt">ARCHIVE</span>
-            </Link>
-          </div> */}
-
-          <header id="building" className="v3-sech">
-            <span className="id">/ 02</span>
-            <h2>building<span className="accent">.</span></h2>
-          </header>
-          <BuildingSlider />
-
-          <header id="about" className="v3-sech">
-            <span className="id">/ 03·04</span>
-            <h2>about<span className="accent">.</span></h2>
-            <span className="meta">BIO · EXPERIENCE · UPDATED 2026.04</span>
-          </header>
-          <section className="v3-about">
-            <div>
-              <h4>/ BIO</h4>
-              <p style={{ color: "#fff", fontSize: 18 }}>{D.bio}</p>
-              <p>I tend to write in long form because most of what's interesting in crypto doesn't compress to a tweet.</p>
-              <p>Off-chain: 35mm photography (mostly Seoul at night), running, and a long-running attempt to learn Mandarin.</p>
-              <div style={{ marginTop: 24, padding: 16, border: "1px solid var(--cyan)", maxWidth: 420 }}>
-                <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "var(--cyan)", marginBottom: 8 }}>/ AVAILABILITY</div>
-                <div style={{ fontSize: 14, color: "#fff" }}>Open to <b style={{ color: "var(--cyan)" }}>part-time or full-time roles</b>, including internships.</div>
-              </div>
+          <div className="hero-card rise" style={{ animationDelay: "300ms" }}>
+            <div className="hc-head">
+              <span>Profile</span>
+              <span className="mono">JC · 2027</span>
             </div>
-            <div id="resume" className="resume">
-              <h4>/ EXPERIENCE</h4>
-              {D.experience.map((e, i) => (
-                <div key={i} className="row">
-                  <div className="period">{e.period}</div>
-                  <div>
-                    <div className="org">{e.org}</div>
-                    <div className="role">{e.role}</div>
-                    <div className="note">{e.note}</div>
+            <div className="hc-chart">
+              <HeroChart />
+            </div>
+            <dl className="hc-sheet">
+              <div>
+                <dt>Education</dt>
+                <dd>SMU · BSc Information Systems</dd>
+              </div>
+              <div>
+                <dt>Focus</dt>
+                <dd>Client coverage · Capital markets · Strategy</dd>
+              </div>
+              <div>
+                <dt>Languages</dt>
+                <dd>Korean · English · Mandarin (beginner)</dd>
+              </div>
+              <div>
+                <dt>Based</dt>
+                <dd>{D.location}</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
+        {/* ── Stats ────────────────────────────────────────── */}
+        <section className="stats">
+          <div className="wrap stats-grid">
+            {D.stats.map((s, i) => (
+              <Reveal key={s.label} className="stat" delay={i * 80}>
+                <span className="stat-v">
+                  <CountUp value={s.value} prefix={s.prefix} suffix={s.suffix} />
+                </span>
+                <span className="stat-l">{s.label}</span>
+              </Reveal>
+            ))}
+          </div>
+        </section>
+
+        {/* ── About ────────────────────────────────────────── */}
+        <section id="about" className="section wrap">
+          <SectionHead n="01" kicker="About" title={<>Where analysis meets <em>relationships</em>.</>} />
+          <div className="about-grid">
+            <Reveal className="about-statement">
+              <p>{D.intro}</p>
+            </Reveal>
+            <div className="pillars">
+              {D.pillars.map((p, i) => (
+                <Reveal key={p.n} className="pillar" delay={i * 90}>
+                  <span className="pillar-n">{p.n}</span>
+                  <h3>{p.title}</h3>
+                  <p>{p.body}</p>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Experience ───────────────────────────────────── */}
+        <section id="experience" className="section wrap">
+          <SectionHead n="02" kicker="Experience" title={<>A track record across <em>finance</em>, venture &amp; tech.</>} />
+          <ol className="timeline">
+            {D.experience.map((e, i) => (
+              <Reveal as="li" key={e.org} className="tl-row" delay={i * 60}>
+                <div className="tl-when">
+                  <span>{e.period}</span>
+                  <span className="muted">{e.location}</span>
+                </div>
+                <div className="tl-body">
+                  <div className="tl-title">
+                    <h3>{e.org}</h3>
+                    {e.kind !== "work" && <span className="chip">{e.kind === "leadership" ? "Leadership" : "National service"}</span>}
                   </div>
+                  <p className="tl-role">{e.role}</p>
+                  <ul>
+                    {e.points.map((pt) => (
+                      <li key={pt}>{pt}</li>
+                    ))}
+                  </ul>
+                </div>
+              </Reveal>
+            ))}
+          </ol>
+
+          <div className="creds">
+            <Reveal className="cred">
+              <h4>Education</h4>
+              {D.education.map((ed) => (
+                <div key={ed.school} className="cred-item">
+                  <strong>{ed.school}</strong>
+                  <span>{ed.detail}</span>
+                  <span className="muted">{ed.period}</span>
                 </div>
               ))}
-            </div>
-          </section>
+            </Reveal>
+            <Reveal className="cred" delay={90}>
+              <h4>Languages</h4>
+              {D.languages.map((l) => (
+                <div key={l.name} className="lang">
+                  <span>{l.name}</span>
+                  <span className={`lang-bar lv-${l.level.toLowerCase()}`}>
+                    <i />
+                  </span>
+                  <span className="muted">{l.level}</span>
+                </div>
+              ))}
+            </Reveal>
+            <Reveal className="cred" delay={180}>
+              <h4>Skills &amp; certificates</h4>
+              <div className="tags">
+                {D.skills.map((s) => (
+                  <span key={s} className="chip">
+                    {s}
+                  </span>
+                ))}
+              </div>
+              <ul className="cert-list">
+                {D.certificates.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            </Reveal>
+          </div>
+        </section>
 
-          <section id="contact" className="v3-contact">
-            <span style={{ fontSize: 10, letterSpacing: "0.2em", color: "var(--cyan)" }}>/ 05 — CONTACT</span>
-            <h2>Get in <span className="underline">touch</span>.</h2>
-            <p style={{ maxWidth: "50ch", color: "#c0c8cc", fontSize: 15, lineHeight: 1.6 }}>Best over email for long things. DMs open on Telegram for everything else.</p>
-            <div className="grid">
-              {D.socials.map((s) => (
-                <a key={s.label} href={s.url}>
-                  <span className="l">/ {s.label}</span>
-                  <span className="h">{s.handle}</span>
+        {/* ── Work: builds + writing ───────────────────────── */}
+        {(builds.length > 0 || posts.length > 0) && (
+          <section id="work" className="section wrap">
+            <SectionHead n="03" kicker="Selected work" title={<>Things I've <em>built</em> and written.</>} />
+
+            {builds.length > 0 && (
+              <div className="cards">
+                {builds.slice(0, 3).map((b, i) => {
+                  const img = extractFirstImage(b.body);
+                  return (
+                    <Reveal key={b.slug} delay={i * 80}>
+                      <Link href={`/building/${b.slug}`} className="card">
+                        <div className="card-media">
+                          {img ? <img src={img} alt="" loading="lazy" /> : <span className="card-mono">{b.title.slice(0, 1)}</span>}
+                        </div>
+                        <div className="card-body">
+                          <span className="card-meta">{b.date}</span>
+                          <h3>{b.title}</h3>
+                          {b.dek && <p>{b.dek}</p>}
+                          <span className="card-link">Read case study →</span>
+                        </div>
+                      </Link>
+                    </Reveal>
+                  );
+                })}
+              </div>
+            )}
+
+            {posts.length > 0 && (
+              <Reveal className="post-list">
+                {posts.slice(0, 4).map((p) => (
+                  <Link key={p.slug} href={`/writing/${p.slug}`} className="post-row">
+                    <span className="mono muted">{p.date}</span>
+                    <span className="post-t">{p.title}</span>
+                    <span className="arrow">→</span>
+                  </Link>
+                ))}
+                <Link href="/writing" className="more">
+                  All writing →
+                </Link>
+              </Reveal>
+            )}
+          </section>
+        )}
+
+        {/* ── Markets brief ────────────────────────────────── */}
+        {news.length > 0 && (
+          <section className="section wrap">
+            <SectionHead n="04" kicker="Markets brief" title={<>What I'm <em>reading</em> today.</>} />
+            <Reveal className="brief">
+              {news.map((n) => (
+                <a key={n.id} href={n.url || "/news"} target={n.url ? "_blank" : undefined} rel="noopener noreferrer" className="brief-row">
+                  <span className="chip">{n.category}</span>
+                  <span className="brief-t">{n.title}</span>
+                  <span className="muted brief-src">{n.source}</span>
                 </a>
               ))}
-            </div>
+              <Link href="/news" className="more">
+                Full brief →
+              </Link>
+            </Reveal>
           </section>
+        )}
 
-          <footer className="v3-foot">
-            <span>© 2026 CHOI JUHWAN · NO COOKIES · NO ANALYTICS</span>
-            <span>SET IN SPACE GROTESK + JETBRAINS MONO <Link href="/admin" style={{ color: "var(--dim)", opacity: 0.3, textDecoration: "none" }}>·</Link></span>
-          </footer>
-        </main>
-      </div>
+        {/* ── Contact ──────────────────────────────────────── */}
+        <section id="contact" className="contact">
+          <div className="wrap contact-inner">
+            <Reveal>
+              <span className="kicker on-dark">
+                <span className="kicker-n">05</span>Contact
+              </span>
+              <h2>
+                Let's <em>talk</em>.
+              </h2>
+              <p>
+                Whether it's a graduate role, an internship or a coffee chat about markets, I'd be
+                glad to hear from you.
+              </p>
+            </Reveal>
+            <Reveal className="contact-links" delay={120}>
+              <a href={`mailto:${D.email}`} className="contact-email">
+                {D.email} <span aria-hidden="true">↗</span>
+              </a>
+              <div className="contact-row">
+                {D.socials
+                  .filter((s) => s.label !== "Email")
+                  .map((s) => (
+                    <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" className="btn btn-light">
+                      {s.label} <span aria-hidden="true">↗</span>
+                    </a>
+                  ))}
+              </div>
+            </Reveal>
+          </div>
+        </section>
+      </main>
+
+      <SiteFooter visitors={visitors} />
     </div>
   );
 }

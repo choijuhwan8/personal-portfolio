@@ -1,5 +1,5 @@
 /**
- * Fetches today's crypto news via Claude and writes to Firestore.
+ * Fetches today's financial markets news via Claude and writes to Firestore.
  * Run: node scripts/fetch-news.js
  */
 
@@ -73,16 +73,15 @@ function selectSix(items) {
         return true;
     };
 
-    // 1. Best MARKETS article, 2nd if significance >= 7
-    const markets = sorted("MARKETS");
-    pick(markets[0]);
-    if (markets[1] && (markets[1].significance || 0) >= 7) pick(markets[1]);
+    // 1. Best EQUITIES article, 2nd if significance >= 7
+    const equities = sorted("EQUITIES");
+    pick(equities[0]);
+    if (equities[1] && (equities[1].significance || 0) >= 7) pick(equities[1]);
 
-    // 2. Best REGULATION
-    pick(sorted("REGULATION")[0]);
-
-    // 3. Best DEFI
-    pick(sorted("DEFI")[0]);
+    // 2. Best MACRO, RATES and FX
+    pick(sorted("MACRO")[0]);
+    pick(sorted("RATES")[0]);
+    pick(sorted("FX")[0]);
 
     // 4. Fill remaining slots with highest significance overall
     const remaining = [...items]
@@ -100,15 +99,15 @@ function selectSix(items) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
     const today = new Date().toISOString().slice(0, 10);
-    console.log(`Fetching crypto news for ${today}...`);
+    console.log(`Fetching markets news for ${today}...`);
 
     // ── Step 1: cover image (skipped at low API tier — SVG fallback used) ────
     const coverImage = "";
 
     // ── Step 2: fetch 12 news articles ───────────────────────────────────────
-    const prompt = `You are a crypto analyst writing a daily digest. Today is ${today}.
+    const prompt = `You are a markets analyst at an investment bank writing a daily client digest. Today is ${today}.
 
-Search the web for today's top crypto and blockchain news. Use multiple search queries: "crypto news ${today}", "bitcoin news ${today}", "ethereum news ${today}", "defi news ${today}", "blockchain news ${today}", "crypto regulation ${today}". Read each article carefully before writing about it.
+Search the web for today's top financial markets news, with attention to Asia (Singapore, Korea, Japan, Hong Kong) as well as the US. Use multiple search queries: "stock market news ${today}", "Asia markets ${today}", "Federal Reserve ${today}", "bond yields ${today}", "currency markets ${today}", "IPO news ${today}", "MAS OR Bank of Korea ${today}". Do not include cryptocurrency or blockchain stories. Read each article carefully before writing about it.
 
 For each story, write your own curated analysis — do not copy the headline or lede verbatim. Write like a knowledgeable analyst explaining what happened and why it matters.
 
@@ -120,16 +119,16 @@ Format:
     "title": "your own punchy headline (not copied verbatim from the article, max 12 words)",
     "summary": "2-3 sentence curated summary. What happened, why it matters, what to watch.",
     "body": "4-6 sentence deeper analysis. Context, implications, relevant background, market impact. Plain text only, no markdown, no emoji, no <cite> tags.",
-    "url": "direct permalink to the specific article page (must include a path, not just the domain root — e.g. https://coindesk.com/markets/2025/05/15/article-slug not https://coindesk.com/)",
-    "source": "publication name e.g. CoinDesk, The Block, Decrypt, Reuters",
+    "url": "direct permalink to the specific article page (must include a path, not just the domain root — e.g. https://www.reuters.com/markets/asia/article-slug not https://www.reuters.com/)",
+    "source": "publication name e.g. Reuters, Bloomberg, Financial Times, The Business Times, Nikkei Asia",
     "date": "${today}",
-    "category": "one of: MARKETS | DEFI | REGULATION | INFRASTRUCTURE | NFT | MACRO",
-    "significance": "integer 1-10, your assessment of market/ecosystem importance (10 = major market-moving event)",
+    "category": "one of: EQUITIES | RATES | FX | COMMODITIES | MACRO | POLICY",
+    "significance": "integer 1-10, your assessment of market importance (10 = major market-moving event)",
     "imageUrl": "a direct image URL from the article ending in .jpg .jpeg .png or .webp if one is available, otherwise empty string"
   }
 ]
 
-Aim for exactly 12 items. Cover a mix of all categories. Prioritize stories with real market or ecosystem significance. Avoid low-quality PR pieces.
+Aim for exactly 12 items. Cover a mix of all categories. Prioritize stories with real market significance. Avoid low-quality PR pieces.
 
 IMPORTANT: Your entire response must be valid JSON starting with [ and nothing else before it.`;
 
@@ -193,6 +192,7 @@ IMPORTANT: Your entire response must be valid JSON starting with [ and nothing e
             category: item.category || "",
             significance: Number(item.significance) || 5,
             imageUrl: imageUrl || "",
+            beat: "markets",
         }, { merge: true });
 
         console.log(`  ✓ [${item.category}][${item.significance}] ${item.title.slice(0, 55)}`);
