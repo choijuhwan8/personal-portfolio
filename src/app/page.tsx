@@ -72,22 +72,22 @@ export default function Home() {
         {/* ── Hero ─────────────────────────────────────────── */}
         <section className="hero wrap">
           <div className="hero-copy">
-            <span className="eyebrow rise" style={{ animationDelay: "60ms" }}>
+            <span className="eyebrow rise">
               <span className="live-dot" />
               {D.availability}
             </span>
-            <h1 className="rise" style={{ animationDelay: "140ms" }}>
+            <h1 className="rise" style={{ animationDelay: "50ms" }}>
               Clear thinking
               <br />
               for <em>complex</em> markets.
             </h1>
-            <p className="lede rise" style={{ animationDelay: "240ms" }}>
+            <p className="lede rise" style={{ animationDelay: "100ms" }}>
               I'm Juhwan, an Information Systems student at SMU. I've worked in{" "}
               <strong>equity capital markets</strong>, <strong>venture building</strong> and{" "}
               <strong>technology</strong>, and I'm looking for client-facing roles in financial
               services.
             </p>
-            <div className="hero-cta rise" style={{ animationDelay: "340ms" }}>
+            <div className="hero-cta rise" style={{ animationDelay: "150ms" }}>
               <a href="#contact" className="btn">
                 Get in touch <span aria-hidden="true">→</span>
               </a>
@@ -97,10 +97,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="hero-card rise" style={{ animationDelay: "300ms" }}>
+          <div className="hero-card rise" style={{ animationDelay: "200ms" }}>
             <div className="hc-head">
-              <span>Profile</span>
-              <span className="mono">JC · 2027</span>
+              <span>Experience</span>
+              <span className="mono">2023 — now</span>
             </div>
             <div className="hc-chart">
               <HeroChart />
@@ -130,7 +130,7 @@ export default function Home() {
         <section className="stats">
           <div className="wrap stats-grid">
             {D.stats.map((s, i) => (
-              <Reveal key={s.label} className="stat" delay={i * 80}>
+              <Reveal key={s.label} className="stat" delay={i * 50}>
                 <span className="stat-v">
                   <CountUp value={s.value} prefix={s.prefix} suffix={s.suffix} />
                 </span>
@@ -142,14 +142,14 @@ export default function Home() {
 
         {/* ── About ────────────────────────────────────────── */}
         <section id="about" className="section wrap">
-          <SectionHead n="01" kicker="About" title={<>Where analysis meets <em>relationships</em>.</>} />
+          <SectionHead n="01" kicker="About" title="Client-facing work, backed by analysis" />
           <div className="about-grid">
             <Reveal className="about-statement">
               <p>{D.intro}</p>
             </Reveal>
             <div className="pillars">
               {D.pillars.map((p, i) => (
-                <Reveal key={p.n} className="pillar" delay={i * 90}>
+                <Reveal key={p.n} className="pillar" delay={i * 50}>
                   <span className="pillar-n">{p.n}</span>
                   <h3>{p.title}</h3>
                   <p>{p.body}</p>
@@ -161,10 +161,10 @@ export default function Home() {
 
         {/* ── Experience ───────────────────────────────────── */}
         <section id="experience" className="section wrap">
-          <SectionHead n="02" kicker="Experience" title={<>A track record across <em>finance</em>, venture &amp; tech.</>} />
+          <SectionHead n="02" kicker="Experience" title="Capital markets, venture and technology" />
           <ol className="timeline">
             {D.experience.map((e, i) => (
-              <Reveal as="li" key={e.org} className="tl-row" delay={i * 60}>
+              <Reveal as="li" key={e.org} className="tl-row" delay={i * 50}>
                 <div className="tl-when">
                   <span>{e.period}</span>
                   <span className="muted">{e.location}</span>
@@ -196,19 +196,16 @@ export default function Home() {
                 </div>
               ))}
             </Reveal>
-            <Reveal className="cred" delay={90}>
+            <Reveal className="cred" delay={50}>
               <h4>Languages</h4>
               {D.languages.map((l) => (
                 <div key={l.name} className="lang">
                   <span>{l.name}</span>
-                  <span className={`lang-bar lv-${l.level.toLowerCase()}`}>
-                    <i />
-                  </span>
                   <span className="muted">{l.level}</span>
                 </div>
               ))}
             </Reveal>
-            <Reveal className="cred" delay={180}>
+            <Reveal className="cred" delay={100}>
               <h4>Skills &amp; certificates</h4>
               <div className="tags">
                 {D.skills.map((s) => (
@@ -229,14 +226,14 @@ export default function Home() {
         {/* ── Work: builds + writing ───────────────────────── */}
         {(builds.length > 0 || posts.length > 0) && (
           <section id="work" className="section wrap">
-            <SectionHead n="03" kicker="Selected work" title={<>Things I've <em>built</em> and written.</>} />
+            <SectionHead n="03" kicker="Selected work" title="Case studies and writing" />
 
             {builds.length > 0 && (
               <div className="cards">
                 {builds.slice(0, 3).map((b, i) => {
                   const img = extractFirstImage(b.body);
                   return (
-                    <Reveal key={b.slug} delay={i * 80}>
+                    <Reveal key={b.slug} delay={i * 50}>
                       <Link href={`/building/${b.slug}`} className="card">
                         <div className="card-media">
                           {img ? <img src={img} alt="" loading="lazy" /> : <span className="card-mono">{b.title.slice(0, 1)}</span>}
@@ -274,7 +271,7 @@ export default function Home() {
         {/* ── Markets brief ────────────────────────────────── */}
         {news.length > 0 && (
           <section className="section wrap">
-            <SectionHead n="04" kicker="Markets brief" title={<>What I'm <em>reading</em> today.</>} />
+            <SectionHead n="04" kicker="Markets brief" title="Markets news I'm reading" />
             <Reveal className="brief">
               {news.map((n) => (
                 <a key={n.id} href={n.url || "/news"} target={n.url ? "_blank" : undefined} rel="noopener noreferrer" className="brief-row">
@@ -297,15 +294,13 @@ export default function Home() {
               <span className="kicker on-dark">
                 <span className="kicker-n">05</span>Contact
               </span>
-              <h2>
-                Let's <em>talk</em>.
-              </h2>
+              <h2>Open to 2027 roles</h2>
               <p>
                 Whether it's a graduate role, an internship or a coffee chat about markets, I'd be
                 glad to hear from you.
               </p>
             </Reveal>
-            <Reveal className="contact-links" delay={120}>
+            <Reveal className="contact-links" delay={50}>
               <a href={`mailto:${D.email}`} className="contact-email">
                 {D.email} <span aria-hidden="true">↗</span>
               </a>

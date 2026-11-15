@@ -1,5 +1,6 @@
 export type Experience = {
   org: string;
+  short?: string;
   role: string;
   period: string;
   location: string;
@@ -66,6 +67,7 @@ export const PORTFOLIO_DATA = {
     },
     {
       org: "Mirae Asset Securities",
+      short: "Mirae Asset",
       role: "Equity Capital Markets & Digital Assets Intern",
       period: "Aug 2025 — Nov 2025",
       location: "Singapore",
@@ -78,6 +80,7 @@ export const PORTFOLIO_DATA = {
     },
     {
       org: "Korean Student Association of SMU",
+      short: "KSA SMU",
       role: "Events Director",
       period: "Aug 2025 — Nov 2026",
       location: "Singapore",
@@ -89,6 +92,7 @@ export const PORTFOLIO_DATA = {
     },
     {
       org: "Republic of Korea Army",
+      short: "ROK Army",
       role: "Personnel Specialist, 3rd Infantry Division",
       period: "Nov 2023 — May 2025",
       location: "South Korea",
