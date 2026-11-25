@@ -78,9 +78,35 @@ export function md2html(src: string): string {
   return h;
 }
 
+function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+  return (
+    <div className={`lightbox${full ? " is-full" : ""}`} role="dialog" aria-modal="true" aria-label={alt || "Image"} onClick={onClose}>
+      <img src={src} alt={alt} onClick={(e) => { e.stopPropagation(); setFull((f) => !f); }} />
+      <button type="button" className="lightbox-close" aria-label="Close" onClick={onClose}>×</button>
+    </div>
+  );
+}
+
 export default function PostBody({ body }: { body: string }) {
   const [resolved, setResolved] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null);
   useEffect(() => { resolveImgRefs(body).then((b) => setResolved(md2html(b))); }, [body]);
-  if (resolved === null) return <div className="prose" dangerouslySetInnerHTML={{ __html: md2html(body) }} />;
-  return <div className="prose" dangerouslySetInnerHTML={{ __html: resolved }} />;
+  const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const t = e.target as HTMLElement;
+    if (t instanceof HTMLImageElement) setZoom({ src: t.currentSrc || t.src, alt: t.alt });
+  };
+  return (
+    <>
+      <div className="prose" onClick={onClick} dangerouslySetInnerHTML={{ __html: resolved ?? md2html(body) }} />
+      {zoom && <Lightbox src={zoom.src} alt={zoom.alt} onClose={() => setZoom(null)} />}
+    </>
+  );
 }
