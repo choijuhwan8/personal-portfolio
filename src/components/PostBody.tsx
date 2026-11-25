@@ -26,7 +26,8 @@ async function resolveImgRefs(body: string): Promise<string> {
 export function md2html(src: string): string {
   const codeBlocks: string[] = [];
   const imgBlocks: string[] = [];
-  src = src.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
+  // URL may contain one level of balanced parens, e.g. "image%20(1).png"
+  src = src.replace(/!\[([^\]]*)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g, (_, alt, url) => {
     imgBlocks.push(`<figure><img src='${url}' alt='${alt}'/></figure>`);
     return `%%IMG${imgBlocks.length - 1}%%`;
   });
@@ -60,7 +61,7 @@ export function md2html(src: string): string {
   h = h.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
   h = h.replace(/_([^_]+)_/g,"<em>$1</em>");
   h = h.replace(/%%IC(\d+)%%/g, (_, i) => inlineCode[+i]);
-  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g,"<a href='$2'>$1</a>");
+  h = h.replace(/\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g,"<a href='$2'>$1</a>");
     h = h.replace(/\n\n+/g,`</p><p>`);
   h = h.replace(/\n/g,"<br/>");
   h = h.replace(/(<br\/>)+(<\/p>)/g,"$2");

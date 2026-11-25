@@ -193,10 +193,11 @@ export default function AdminPage() {
     try {
       const storageRef = ref(storage, `post-images/${Date.now()}-${file.name}`);
       await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      // Encode parens so the markdown image syntax isn't cut short by "(1)" in filenames
+      const url = (await getDownloadURL(storageRef)).replace(/\(/g, "%28").replace(/\)/g, "%29");
       const ta = document.getElementById("body-ta") as HTMLTextAreaElement;
       const s = ta.selectionStart;
-      const md = `![${file.name}](${url})`;
+      const md = `\n\n![${file.name.replace(/[[\]]/g, "")}](${url})\n\n`;
       const next = ta.value.slice(0, s) + md + ta.value.slice(s);
       update("body", next);
       setUploadState("UPLOADED ✓");
